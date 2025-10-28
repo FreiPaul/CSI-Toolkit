@@ -10,7 +10,7 @@ from collections import deque
 from math import sqrt
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+import matplotlib
 
 # Optional SciPy for Butterworth filtering
 try:
@@ -41,6 +41,8 @@ def parse_args():
                    help="Max packets to keep in memory for plotting (ring buffer). Default: 20000")
     p.add_argument("--limit", type=int, default=None,
                    help="Limit of points to plot (rolling window). If set, only the last N points are displayed.")
+    p.add_argument("--backend", type=str, default=None,
+                   help="Matplotlib backend (e.g., 'TkAgg' for X11/SSH). Common options: TkAgg, Qt5Agg, GTK3Agg")
     return p.parse_args()
 
 
@@ -174,6 +176,14 @@ def tail_csv(
 
 def main():
     args = parse_args()
+
+    # Set matplotlib backend if specified (must be done before importing pyplot)
+    if args.backend:
+        matplotlib.use(args.backend)
+
+    # Import pyplot after backend is set
+    import matplotlib.pyplot as plt
+
     csv_path = Path(args.csvfile)
 
     # Shared buffers (append-only)
