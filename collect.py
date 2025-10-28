@@ -16,7 +16,10 @@ load_dotenv()
 # === Settings ===
 SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/cu.usbmodem1101")   # e.g., "COM3" on Windows
 BAUDRATE = int(os.getenv("BAUDRATE", "921600"))
-CSV_FILENAME = f"csi_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+FLUSH_INTERVAL = int(os.getenv("FLUSH_INTERVAL", "1"))  # Flush every N packets (reduce SD writes)
+
+# File naming: always write to "current.csv", rename on exit
+CURRENT_FILENAME = "current.csv"
 
 # === CSV Header ===
 CSV_HEADER = [
@@ -86,13 +89,17 @@ def main():
     ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1)
 
     start_time = datetime.now()
+    session_start_time = datetime.now()  # Remember when we started for filename
 
-    with open(CSV_FILENAME, "w", newline="") as f:
+    with open(CURRENT_FILENAME, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(CSV_HEADER)
 
         count = 0
-        print(f"Filename: {CSV_FILENAME}")
+        packet_count = 0
+        print(f"Writing to: {CURRENT_FILENAME}")
+        print(f"Flush interval: every {FLUSH_INTERVAL} packets (reduces SD card wear)")
+        print(f"(File will be renamed to timestamped name on exit)")
 
         try:
             while True:
@@ -106,7 +113,12 @@ def main():
                     if row:
                         row_final = add_processed_fields(row)
                         writer.writerow(row_final)
-                        f.flush()
+                        packet_count += 1
+
+                        # Only flush every N packets to reduce SD card wear
+                        if packet_count % FLUSH_INTERVAL == 0:
+                            f.flush()
+
                         elapsed_time = datetime.now() - start_time
                         rate = count / max(elapsed_time.total_seconds(), 1e-6)
                         if elapsed_time.total_seconds() >= 1:
@@ -116,8 +128,16 @@ def main():
         except KeyboardInterrupt:
             print("\nUser terminated the program.")
         finally:
+            f.flush()  # Final flush to ensure all data is written
             ser.close()
-            print(f"File saved: {CSV_FILENAME}")
+
+    # Rename current.csv to timestamped filename after closing
+    final_filename = f"csi_log_{session_start_time.strftime('%Y%m%d_%H%M%S')}.csv"
+    if os.path.exists(CURRENT_FILENAME):
+        os.rename(CURRENT_FILENAME, final_filename)
+        print(f"File saved and renamed: {final_filename}")
+    else:
+        print(f"File saved: {CURRENT_FILENAME}")
 
 
 if __name__ == "__main__":
