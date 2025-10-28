@@ -2,3 +2,4 @@ pyserial
 python-csv
 regex
 datetime
+python-dotenv

@@ -5,12 +5,17 @@ import serial
 import csv
 import re
 import json
+import os
 from datetime import datetime
 from math import sqrt
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # === Settings ===
-SERIAL_PORT = "/dev/cu.usbmodem1101"   # e.g., "COM3" on Windows
-BAUDRATE = 921600
+SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/cu.usbmodem1101")   # e.g., "COM3" on Windows
+BAUDRATE = int(os.getenv("BAUDRATE", "921600"))
 CSV_FILENAME = f"csi_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
 
 # === CSV Header ===
