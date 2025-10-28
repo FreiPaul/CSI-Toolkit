@@ -1,0 +1,4 @@
+pyserial
+python-csv
+regex
+datetime
