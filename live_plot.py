@@ -39,6 +39,8 @@ def parse_args():
                    help="Moving-average window (packets) when SciPy/--fs not used. Default: 10")
     p.add_argument("--maxpoints", type=int, default=20000,
                    help="Max packets to keep in memory for plotting (ring buffer). Default: 20000")
+    p.add_argument("--limit", type=int, default=None,
+                   help="Limit of points to plot (rolling window). If set, only the last N points are displayed.")
     return p.parse_args()
 
 
@@ -250,6 +252,12 @@ def main():
                 y1 = mean_amp[:]
                 y2 = sc_amp[:]
 
+            # Apply rolling window limit if specified
+            if args.limit is not None and n > args.limit:
+                x = x[-args.limit:]
+                y1 = y1[-args.limit:]
+                y2 = y2[-args.limit:]
+
             # Filtering
             y1_f = lowpass(y1, fs=args.fs, fc=args.fc, order=args.order, maN=args.ma)
             y2_f = lowpass(y2, fs=args.fs, fc=args.fc, order=args.order, maN=args.ma)
@@ -265,7 +273,7 @@ def main():
                 ax.relim()
                 ax.autoscale_view()
 
-            if n != last_len:
+            if n != last_len and len(x) > 1:
                 ax1.set_xlim(max(1, x[0]), x[-1])
                 ax2.set_xlim(max(1, x[0]), x[-1])
                 last_len = n

@@ -3,3 +3,4 @@ python-csv
 regex
 datetime
 python-dotenv
+scipy
