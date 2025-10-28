@@ -57,6 +57,9 @@ def add_processed_fields(row):
     data_str = row[14]
     try:
         csi_raw = json.loads(data_str)
+        # Ensure csi_raw is a list
+        if not isinstance(csi_raw, list):
+            return None  # Skip malformed data
     except Exception:
         # fallback: manually parse if JSON decoding fails
         s = data_str.strip().strip('"').strip("'").strip()
@@ -72,12 +75,19 @@ def add_processed_fields(row):
                     except ValueError:
                         pass
 
+    # Validate we have data
+    if not csi_raw or len(csi_raw) < 2:
+        return None  # Skip if insufficient data
+
     n_pairs = len(csi_raw) // 2
     amplitudes = []
-    for k in range(n_pairs):
-        q = float(csi_raw[2 * k + 0])
-        i = float(csi_raw[2 * k + 1])
-        amplitudes.append(round(sqrt(i * i + q * q), 4))
+    try:
+        for k in range(n_pairs):
+            q = float(csi_raw[2 * k + 0])
+            i = float(csi_raw[2 * k + 1])
+            amplitudes.append(round(sqrt(i * i + q * q), 4))
+    except (IndexError, ValueError, TypeError):
+        return None  # Skip if calculation fails
 
     # Add amplitude list as JSON string
     row_with_amp = row + [json.dumps(amplitudes)]
@@ -112,19 +122,20 @@ def main():
                     row = parse_csi_line(raw_line)
                     if row:
                         row_final = add_processed_fields(row)
-                        writer.writerow(row_final)
-                        packet_count += 1
+                        if row_final:  # Only write if processing succeeded
+                            writer.writerow(row_final)
+                            packet_count += 1
 
-                        # Only flush every N packets to reduce SD card wear
-                        if packet_count % FLUSH_INTERVAL == 0:
-                            f.flush()
+                            # Only flush every N packets to reduce SD card wear
+                            if packet_count % FLUSH_INTERVAL == 0:
+                                f.flush()
 
-                        elapsed_time = datetime.now() - start_time
-                        rate = count / max(elapsed_time.total_seconds(), 1e-6)
-                        if elapsed_time.total_seconds() >= 1:
-                            start_time = datetime.now()
-                            count = 0
-                        print(f"CSI frame {row[1]} saved (RSSI={row[3]} dBm), Rate={rate:.2f} Hz", end="\r")
+                            elapsed_time = datetime.now() - start_time
+                            rate = count / max(elapsed_time.total_seconds(), 1e-6)
+                            if elapsed_time.total_seconds() >= 1:
+                                start_time = datetime.now()
+                                count = 0
+                            print(f"CSI frame {row[1]} saved (RSSI={row[3]} dBm), Rate={rate:.2f} Hz", end="\r")
         except KeyboardInterrupt:
             print("\nUser terminated the program.")
         finally:
