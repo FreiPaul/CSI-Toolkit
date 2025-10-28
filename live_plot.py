@@ -4,13 +4,14 @@
 import argparse
 import csv
 import json
+import subprocess
 import threading
 import time
 from collections import deque
 from math import sqrt
 from pathlib import Path
 
-import matplotlib
+import matplotlib.pyplot as plt
 
 # Optional SciPy for Butterworth filtering
 try:
@@ -19,12 +20,15 @@ try:
 except Exception:
     HAS_SCIPY = False
 
-# python live_plot.py csi_log_20251028_120402.csv --refresh 0.2 --subcarrier 10
+# Usage:
+# Local:  python live_plot.py csi_log_20251028_120402.csv --refresh 0.2 --subcarrier 10
+# Remote: python live_plot.py user@host:/path/to/csi_log.csv --refresh 0.2 --subcarrier 10
 def parse_args():
     p = argparse.ArgumentParser(
         description="Live-tail a CSI CSV and plot amplitudes with low-pass filtering."
     )
-    p.add_argument("csvfile", type=str, help="Path to the growing CSI CSV file")
+    p.add_argument("csvfile", type=str,
+                   help="Path to the growing CSI CSV file (supports SSH: user@host:/path/to/file)")
     p.add_argument("--refresh", type=float, default=0.2,
                    help="Graph refresh interval in seconds (default: 0.2)")
     p.add_argument("--subcarrier", type=int, default=10,
@@ -41,8 +45,6 @@ def parse_args():
                    help="Max packets to keep in memory for plotting (ring buffer). Default: 20000")
     p.add_argument("--limit", type=int, default=None,
                    help="Limit of points to plot (rolling window). If set, only the last N points are displayed.")
-    p.add_argument("--backend", type=str, default=None,
-                   help="Matplotlib backend (e.g., 'TkAgg' for X11/SSH). Common options: TkAgg, Qt5Agg, GTK3Agg")
     return p.parse_args()
 
 
@@ -92,6 +94,117 @@ def lowpass(series, fs=None, fc=2.0, order=4, maN=10):
             return moving_average(series, maN)
     else:
         return moving_average(series, maN)
+
+
+def parse_ssh_path(path_str):
+    """
+    Parse SSH path format: user@host:/path/to/file
+    Returns (ssh_host, remote_path) or (None, None) if local path
+    """
+    if '@' in path_str and ':' in path_str:
+        parts = path_str.split(':', 1)
+        if len(parts) == 2:
+            return parts[0], parts[1]
+    return None, None
+
+
+def fetch_remote_file_lines(ssh_host, remote_path, start_byte=0):
+    """
+    Fetch lines from a remote file starting from a specific byte offset.
+    Returns (lines, new_byte_position)
+    """
+    try:
+        # Use tail -c +N to read from byte position N onwards
+        cmd = ['ssh', ssh_host, f'tail -c +{start_byte + 1} {remote_path}']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            content = result.stdout
+            lines = content.split('\n')
+            # Calculate new byte position
+            new_pos = start_byte + len(content.encode('utf-8'))
+            return lines, new_pos
+        else:
+            return [], start_byte
+    except Exception as e:
+        return [], start_byte
+
+
+def tail_csv_ssh(
+    ssh_host: str,
+    remote_path: str,
+    on_row,
+    stop_event: threading.Event,
+    maxpoints: int = 20000,
+):
+    """
+    Tail a remote CSV file over SSH and call on_row(row_dict) for each new parsed row.
+    """
+    byte_position = 0
+    header = None
+    idx_amp = None
+    idx_seq = None
+    idx_rssi = None
+
+    # First, fetch the header and existing data
+    lines, byte_position = fetch_remote_file_lines(ssh_host, remote_path, 0)
+
+    if not lines:
+        print(f"Error: Could not read remote file {ssh_host}:{remote_path}")
+        return
+
+    # Parse header
+    if lines:
+        try:
+            header = next(csv.reader([lines[0]]))
+            idx_amp = header.index("amplitudes")
+            idx_seq = header.index("seq") if "seq" in header else None
+            idx_rssi = header.index("rssi") if "rssi" in header else None
+        except (ValueError, StopIteration):
+            print("Error: CSV must include an 'amplitudes' column.")
+            return
+
+    # Process existing data (only last maxpoints rows)
+    all_data_lines = [line for line in lines[1:] if line.strip()]
+    lines_to_process = all_data_lines[-maxpoints:] if len(all_data_lines) > maxpoints else all_data_lines
+
+    for line in lines_to_process:
+        try:
+            row = next(csv.reader([line]))
+            if len(row) > idx_amp:
+                on_row(row, header, idx_amp, idx_seq, idx_rssi)
+        except Exception:
+            continue
+
+    # Now continuously tail for new data
+    incomplete_line = ""
+    while not stop_event.is_set():
+        time.sleep(0.1)
+        lines, new_byte_position = fetch_remote_file_lines(ssh_host, remote_path, byte_position)
+
+        if new_byte_position == byte_position:
+            continue  # No new data
+
+        byte_position = new_byte_position
+
+        # Handle incomplete line from previous read
+        if lines:
+            lines[0] = incomplete_line + lines[0]
+            incomplete_line = ""
+
+        # If last line doesn't end with newline, it's incomplete
+        if lines and not lines[-1].endswith('\n'):
+            incomplete_line = lines[-1]
+            lines = lines[:-1]
+
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                row = next(csv.reader([line]))
+                if len(row) > idx_amp:
+                    on_row(row, header, idx_amp, idx_seq, idx_rssi)
+            except Exception:
+                continue
 
 
 def tail_csv(
@@ -177,14 +290,11 @@ def tail_csv(
 def main():
     args = parse_args()
 
-    # Set matplotlib backend if specified (must be done before importing pyplot)
-    if args.backend:
-        matplotlib.use(args.backend)
+    # Check if this is a remote SSH path
+    ssh_host, remote_path = parse_ssh_path(args.csvfile)
+    is_remote = ssh_host is not None
 
-    # Import pyplot after backend is set
-    import matplotlib.pyplot as plt
-
-    csv_path = Path(args.csvfile)
+    csv_path = None if is_remote else Path(args.csvfile)
 
     # Shared buffers (append-only)
     pkt_idx = []         # packet index (1..N)
@@ -234,10 +344,16 @@ def main():
                 del mean_amp[:drop]
                 del sc_amp[:drop]
 
-    # Start tail thread
-    t = threading.Thread(
-        target=tail_csv, args=(csv_path, on_row, stop_event, args.maxpoints), daemon=True
-    )
+    # Start tail thread (either local or SSH)
+    if is_remote:
+        print(f"Connecting to remote file: {ssh_host}:{remote_path}")
+        t = threading.Thread(
+            target=tail_csv_ssh, args=(ssh_host, remote_path, on_row, stop_event, args.maxpoints), daemon=True
+        )
+    else:
+        t = threading.Thread(
+            target=tail_csv, args=(csv_path, on_row, stop_event, args.maxpoints), daemon=True
+        )
     t.start()
 
     # Matplotlib live plot
