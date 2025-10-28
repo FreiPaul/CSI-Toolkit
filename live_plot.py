@@ -97,12 +97,10 @@ def tail_csv(
     on_row,
     stop_event: threading.Event,
     maxpoints: int = 20000,
-    pkt_counter_ref: list = None,
 ):
     """
     Tail the CSV file and call on_row(row_dict) for each new parsed row.
     Expects an 'amplitudes' column containing a JSON array string.
-    pkt_counter_ref: A list containing the packet counter to update (for tracking skipped rows)
     """
     # Wait until file exists and has at least a header
     while not stop_event.is_set():
@@ -146,13 +144,7 @@ def tail_csv(
                 all_lines.append(line)
 
         # Only process the last maxpoints rows if file is large
-        total_rows = len(all_lines)
-        skipped_rows = max(0, total_rows - maxpoints)
-        lines_to_process = all_lines[-maxpoints:] if total_rows > maxpoints else all_lines
-
-        # Update the packet counter to account for skipped rows
-        if pkt_counter_ref is not None and len(pkt_counter_ref) > 0:
-            pkt_counter_ref[0] = skipped_rows
+        lines_to_process = all_lines[-maxpoints:] if len(all_lines) > maxpoints else all_lines
 
         for line in lines_to_process:
             try:
@@ -189,13 +181,13 @@ def main():
     mean_amp = []        # per-packet mean amplitude
     sc_amp = []          # per-packet single-subcarrier amplitude
     sc_index_1based = max(1, args.subcarrier)
-    pkt_counter_ref = [0]  # total packets processed (in list to share with thread)
+    pkt_counter = 0      # total packets processed
 
     lock = threading.Lock()
     stop_event = threading.Event()
 
     def on_row(row, header, idx_amp, idx_seq, idx_rssi):
-        nonlocal sc_index_1based
+        nonlocal sc_index_1based, pkt_counter
         try:
             amp_list = json.loads(row[idx_amp])
         except Exception:
@@ -220,8 +212,8 @@ def main():
             sc_index_1based = len(amp_list)
 
         with lock:
-            pkt_counter_ref[0] += 1
-            pkt_idx.append(pkt_counter_ref[0])
+            pkt_counter += 1
+            pkt_idx.append(pkt_counter)
             mean_amp.append(sum(amp_list) / len(amp_list))
             sc_amp.append(amp_list[sc_index_1based - 1])
 
@@ -234,7 +226,7 @@ def main():
 
     # Start tail thread
     t = threading.Thread(
-        target=tail_csv, args=(csv_path, on_row, stop_event, args.maxpoints, pkt_counter_ref), daemon=True
+        target=tail_csv, args=(csv_path, on_row, stop_event, args.maxpoints), daemon=True
     )
     t.start()
 
