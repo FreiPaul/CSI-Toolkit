@@ -135,7 +135,7 @@ def main():
                             if elapsed_time.total_seconds() >= 1:
                                 start_time = datetime.now()
                                 count = 0
-                            print(f"CSI frame {row[1]} saved (RSSI={row[3]} dBm, AGC_gain={row[7]}), Rate={rate:.2f} Hz", end="\r")
+                            print(f"CSI frame {row[1]} saved (RSSI={row[3]} dBm), Rate={rate:.2f} Hz", end="\r")
         except KeyboardInterrupt:
             print("\nUser terminated the program.")
         finally:
