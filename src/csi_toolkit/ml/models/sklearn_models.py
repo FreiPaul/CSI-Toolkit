@@ -140,8 +140,8 @@ class MLPModel(BaseModel):
             'hidden_layer_sizes': self.hyperparameters.get('hidden_layer_sizes'),
             'n_layers': len(self.model.coefs_),
             'n_iter': self.model.n_iter_,
-            'loss': float(self.model.loss_) if hasattr(self.model, 'loss_') else None,
-            'best_loss': float(self.model.best_loss_) if hasattr(self.model, 'best_loss_') else None,
+            'loss': float(self.model.loss_) if hasattr(self.model, 'loss_') and self.model.loss_ is not None else None,
+            'best_loss': float(self.model.best_loss_) if hasattr(self.model, 'best_loss_') and self.model.best_loss_ is not None else None,
             'activation': self.hyperparameters.get('activation'),
             'solver': self.hyperparameters.get('solver'),
         }
