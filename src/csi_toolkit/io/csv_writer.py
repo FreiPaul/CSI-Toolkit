@@ -106,17 +106,28 @@ class CSVWriter:
             self.writer = None
 
             # Rename to timestamped file
-            if self.start_time:
+            if self.start_time and self.file_path.exists():
                 timestamp = self.start_time.strftime(CSV_DATE_FORMAT)
                 new_filename = f"{CSV_FILE_PREFIX}_{timestamp}.csv"
                 new_path = self.output_dir / new_filename
 
                 try:
+                    # If destination already exists, add a counter
+                    if new_path.exists():
+                        counter = 1
+                        while True:
+                            new_filename = f"{CSV_FILE_PREFIX}_{timestamp}_{counter}.csv"
+                            new_path = self.output_dir / new_filename
+                            if not new_path.exists():
+                                break
+                            counter += 1
+
                     self.file_path.rename(new_path)
                     print(f"Data saved to: {new_path}")
                     return new_path
                 except Exception as e:
                     print(f"Warning: Could not rename file: {e}")
+                    print(f"File remains at: {self.file_path}")
 
         return self.file_path
 

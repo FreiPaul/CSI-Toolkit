@@ -2,6 +2,8 @@
 
 import json
 import re
+import csv
+from io import StringIO
 from typing import List, Optional, Dict, Any
 
 from .constants import CSI_DATA_PREFIX
@@ -24,12 +26,19 @@ def parse_csi_line(line: str) -> Optional[List[str]]:
     if not line.startswith(CSI_DATA_PREFIX):
         return None
 
-    # Split CSV data (skip the "CSI_DATA," prefix)
     try:
-        csv_parts = line.split(",", 15)  # Split up to 15 fields
+        # Use proper CSV parsing to handle quoted fields containing commas
+        reader = csv.reader(StringIO(line))
+        csv_parts = next(reader)
+
+        # Check we have enough fields (CSI_DATA + 14 data fields minimum)
         if len(csv_parts) < 15:
             return None
-        return csv_parts[1:15]  # Return fields excluding CSI_DATA prefix
+
+        # Return fields excluding CSI_DATA prefix
+        # Fields are: seq, mac, rssi, rate, noise_floor, fft_gain, agc_gain,
+        #            channel, local_timestamp, sig_len, rx_state, len, first_word, data
+        return csv_parts[1:15]  # Return 14 fields after CSI_DATA
     except Exception as e:
         raise ParsingError(f"Failed to parse CSI line: {e}")
 

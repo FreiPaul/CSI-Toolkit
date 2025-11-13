@@ -21,6 +21,7 @@ class SerialCollector:
         self,
         config: CollectorConfig,
         callback: Optional[Callable[[List], None]] = None,
+        debug: bool = False,
     ):
         """
         Initialize serial collector.
@@ -28,15 +29,18 @@ class SerialCollector:
         Args:
             config: Collector configuration
             callback: Optional callback for each processed row
+            debug: Enable debug output for troubleshooting
         """
         self.config = config
         self.callback = callback
+        self.debug = debug
 
         self.serial_port = None
         self.csv_writer = None
         self.running = False
         self.packet_count = 0
         self.error_count = 0
+        self.startup_packets = 0  # Track initial packets for debugging
 
         # Setup signal handlers
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -176,11 +180,21 @@ class SerialCollector:
                 # Parse Q,I values
                 q_i_values = parse_amplitude_json(data_field)
 
-                # Calculate amplitudes
-                amplitudes = calculate_amplitudes(q_i_values)
-
-                # Convert to JSON string for CSV
-                amplitudes_str = str(amplitudes)
+                # Only try to calculate amplitudes if we have valid data
+                if q_i_values and len(q_i_values) > 1:
+                    # Calculate amplitudes
+                    amplitudes = calculate_amplitudes(q_i_values)
+                    # Convert to JSON string for CSV
+                    amplitudes_str = str(amplitudes)
+                else:
+                    # Data exists but is too short or malformed
+                    amplitudes_str = "[]"
+                    if q_i_values:  # Only log if we got some data but it's wrong
+                        if self.debug or self.startup_packets < 5:
+                            print(f"Warning: Incomplete Q,I data (got {len(q_i_values)} values)")
+                            if self.debug:
+                                print(f"  Raw data field: {data_field[:100]}...")
+                        self.error_count += 1
             else:
                 amplitudes_str = "[]"
 
@@ -188,13 +202,18 @@ class SerialCollector:
             fields.append(amplitudes_str)
 
         except Exception as e:
-            print(f"Amplitude processing error: {e}")
+            # Only print detailed errors occasionally to avoid spam
+            if self.error_count < 10 or self.error_count % 100 == 0:
+                print(f"Amplitude processing error #{self.error_count + 1}: {e}")
+                if self.error_count == 10:
+                    print("(Further errors will be shown every 100 occurrences)")
             fields.append("[]")  # Empty amplitudes on error
             self.error_count += 1
 
         # Write to CSV
         self.csv_writer.write_row(fields)
         self.packet_count += 1
+        self.startup_packets += 1
 
         # Optional callback
         if self.callback:
@@ -202,7 +221,7 @@ class SerialCollector:
 
         # Print progress
         if self.packet_count % 100 == 0:
-            print(f"Packets collected: {self.packet_count}", end='\r')
+            print(f"Packets collected: {self.packet_count}, Errors: {self.error_count}", end='\r')
 
     def get_statistics(self) -> dict:
         """

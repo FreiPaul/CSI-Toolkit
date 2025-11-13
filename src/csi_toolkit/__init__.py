@@ -16,7 +16,7 @@ Main modules:
 """
 
 __version__ = "0.1.0"
-__author__ = "Your Name"
+__author__ = "Paul Herrmann"
 
 # Import main components for easier access
 from .collection import SerialCollector, CollectorConfig

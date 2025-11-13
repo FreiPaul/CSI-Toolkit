@@ -20,7 +20,7 @@ def collect_command(args):
     )
 
     # Create and start collector
-    collector = SerialCollector(config)
+    collector = SerialCollector(config, debug=args.debug)
     try:
         collector.start()
     except KeyboardInterrupt:
@@ -143,6 +143,11 @@ def main():
         '--env',
         help='Path to .env file',
         default=None,
+    )
+    collect_parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug output for troubleshooting',
     )
     collect_parser.set_defaults(func=collect_command)
 
