@@ -120,6 +120,7 @@ python -m csi_toolkit process --list-features
 
 **Temporal Features** (calculated from multiple windows):
 - `mean_last3`: Mean carrier amplitude across last 3 windows (requires 2 previous windows)
+- `std_last3`: Standard deviation of carrier amplitude across last 3 windows (requires 2 previous windows)
 - `mean_last10`: Mean carrier amplitude across last 10 windows (requires 9 previous windows)
 
 #### Windowing Behavior
@@ -143,9 +144,9 @@ For example, with `mean_last10` (requires 9 previous windows):
 The output CSV contains one row per window with the following structure:
 
 ```csv
-window_id,start_seq,end_seq,mean_amp,std_amp,max_amp,min_amp,mean_last3,mean_last10
-9,900,999,45.2,3.1,52.3,38.1,45.0,44.8
-10,1000,1099,46.1,2.9,51.8,39.0,45.5,45.1
+window_id,start_seq,end_seq,mean_amp,std_amp,max_amp,min_amp,mean_last3,std_last3,mean_last10
+9,900,999,45.2,3.1,52.3,38.1,45.0,1.9,44.8
+10,1000,1099,46.1,2.9,51.8,39.0,45.5,0.7,45.1
 ```
 
 - `window_id`: Index of the window
