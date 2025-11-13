@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "csi-toolkit"
+version = "0.1.0"
+description = "A modular pipeline toolkit for Channel State Information (CSI) data processing"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "pyserial>=3.5",
+    "python-dotenv>=0.19.0",
+    "matplotlib>=3.5.0",
+    "numpy>=1.21.0",
+]
+
+[project.optional-dependencies]
+advanced = [
+    "scipy>=1.7.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=3.0",
+    "black>=22.0",
+    "flake8>=4.0",
+    "mypy>=0.900",
+]
+ml = [
+    "scikit-learn>=1.0",
+    "tensorflow>=2.8",
+    "torch>=1.10",
+]
+
+[project.scripts]
+csi-toolkit = "csi_toolkit.main:main"
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/csi-toolkit"
+"Bug Tracker" = "https://github.com/yourusername/csi-toolkit/issues"
+"Documentation" = "https://github.com/yourusername/csi-toolkit#readme"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["csi_toolkit", "csi_toolkit.core", "csi_toolkit.collection", "csi_toolkit.visualization", "csi_toolkit.processing", "csi_toolkit.io", "csi_toolkit.ml"]
+
+[tool.setuptools.package-data]
+csi_toolkit = ["py.typed"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_any_generics = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --cov=csi_toolkit --cov-report=term-missing"

@@ -1,3 +1,6 @@
 *.csv
 .venv
 .env
+*.pyc
+data
+src/data
