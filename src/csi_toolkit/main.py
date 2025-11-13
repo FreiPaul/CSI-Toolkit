@@ -77,11 +77,55 @@ def plot_command(args):
 
 def process_command(args):
     """Handle the process subcommand."""
-    print("Data processing functionality will be implemented in future versions")
-    print("Available processing modules:")
-    print("  - Amplitude calculation")
-    print("  - Feature extraction")
-    print("  - Signal filtering")
+    from .processing import FeatureExtractor
+    from .processing.features import registry
+
+    # Handle --list-features first (doesn't need input/output files)
+    if args.list_features:
+        print("Available features:")
+        print()
+        for config in registry.get_all():
+            n_context = []
+            if config.n_prev_windows > 0:
+                n_context.append(f"{config.n_prev_windows} prev")
+            if config.n_next_windows > 0:
+                n_context.append(f"{config.n_next_windows} next")
+            context_str = f" ({', '.join(n_context)})" if n_context else ""
+            print(f"  {config.name:15s} - {config.description}{context_str}")
+        return 0
+
+    # Validate input and output are provided
+    if not args.input or not args.output:
+        print("Error: input and output files are required", file=sys.stderr)
+        print("Use --list-features to see available features", file=sys.stderr)
+        return 1
+
+    # Parse feature names if provided
+    feature_names = None
+    if args.features:
+        feature_names = [f.strip() for f in args.features.split(',')]
+
+    # Create feature extractor
+    try:
+        extractor = FeatureExtractor(feature_names)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        print(f"\nAvailable features: {', '.join(registry.list_names())}")
+        return 1
+
+    # Process file
+    try:
+        extractor.process_file(
+            input_csv=args.input,
+            output_csv=args.output,
+            window_size=args.window_size,
+        )
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 1
+
     return 0
 
 
@@ -214,11 +258,37 @@ def main():
     )
     plot_parser.set_defaults(func=plot_command)
 
-    # Process command (placeholder)
+    # Process command
     process_parser = subparsers.add_parser(
         'process',
-        help='Process CSI data (batch processing)',
-        description='Batch processing of CSI data files',
+        help='Extract features from windowed CSI data',
+        description='Convert raw CSI data to windowed features for machine learning',
+    )
+    process_parser.add_argument(
+        'input',
+        nargs='?',  # Make optional
+        help='Input CSV file with raw CSI data',
+    )
+    process_parser.add_argument(
+        'output',
+        nargs='?',  # Make optional
+        help='Output CSV file for extracted features',
+    )
+    process_parser.add_argument(
+        '-w', '--window-size',
+        type=int,
+        default=100,
+        help='Number of samples per window (default: 100)',
+    )
+    process_parser.add_argument(
+        '-f', '--features',
+        help='Comma-separated list of features to extract (default: all)',
+        default=None,
+    )
+    process_parser.add_argument(
+        '--list-features',
+        action='store_true',
+        help='List available features and exit',
     )
     process_parser.set_defaults(func=process_command)
 
