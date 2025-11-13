@@ -263,6 +263,409 @@ Then import your module in `features/__init__.py`:
 from . import custom  # Trigger registration
 ```
 
+## Machine Learning
+
+CSI Toolkit includes a complete machine learning pipeline for activity recognition using CSI data. The ML functionality is modular, allowing custom models and metrics to be easily integrated.
+
+### Installation
+
+ML functionality requires additional dependencies. Install with:
+
+```bash
+pip install -e ".[ml]"
+```
+
+This installs:
+- **scikit-learn**: For MLP models and evaluation metrics
+- Optimized for Apple Silicon through Accelerate framework
+
+### ML Workflow Overview
+
+The complete workflow from data collection to deployment:
+
+```bash
+# 1. Collect labeled data with keyboard input
+python -m csi_toolkit collect
+# (Press keys 0-9 during collection to label activities)
+
+# 2. Extract features with labeled mode
+python -m csi_toolkit process data/current.csv features/labeled_features.csv --labeled
+
+# 3. Train a model
+python -m csi_toolkit train features/labeled_features.csv
+
+# 4. Evaluate model performance
+python -m csi_toolkit evaluate --dataset features/labeled_features.csv --model-dir models/model_20250113_143022
+
+# 5. Run inference on new data
+python -m csi_toolkit inference --dataset features/new_data.csv --model-dir models/model_20250113_143022
+```
+
+### Training
+
+Train a machine learning model on labeled feature data:
+
+```bash
+# Basic training with defaults (MLP model, 70/15/15 split)
+python -m csi_toolkit train features/labeled_features.csv
+
+# Specify model type
+python -m csi_toolkit train features/labeled_features.csv --model mlp
+
+# Custom output directory
+python -m csi_toolkit train features/labeled_features.csv --output-dir models/my-model
+
+# Custom train/val/test split
+python -m csi_toolkit train features.csv --train-split 0.8 --val-split 0.1 --test-split 0.1
+
+# Override hyperparameters
+python -m csi_toolkit train features.csv --params hidden_layer_sizes=(200,100),max_iter=1000
+
+# List available model types
+python -m csi_toolkit train --list-models
+```
+
+**What happens during training:**
+1. Loads features from CSV (automatically detects feature columns)
+2. Validates that `label` column exists
+3. Splits data into train/validation/test sets (stratified)
+4. Trains the model
+5. Creates timestamped directory (e.g., `models/model_20250113_143022/`)
+6. Saves model, metadata, and training log
+
+### Inference
+
+Generate predictions on new (unlabeled) data:
+
+```bash
+# Basic inference
+python -m csi_toolkit inference --dataset features/new_data.csv --model-dir models/model_20250113_143022
+
+# Specify output file
+python -m csi_toolkit inference \
+  --dataset features/new_data.csv \
+  --model-dir models/model_20250113_143022 \
+  --output predictions.csv
+
+# Include class probabilities
+python -m csi_toolkit inference \
+  --dataset features/new_data.csv \
+  --model-dir models/model_20250113_143022 \
+  --probabilities
+```
+
+**Output Format:**
+
+Standard output (predictions only):
+```csv
+window_id,start_seq,end_seq,predicted_label
+0,0,99,1
+1,100,199,1
+2,200,299,2
+```
+
+With `--probabilities`:
+```csv
+window_id,start_seq,end_seq,predicted_label,prob_class_1,prob_class_2,prob_class_3
+0,0,99,1,0.92,0.05,0.03
+1,100,199,1,0.87,0.10,0.03
+2,200,299,2,0.05,0.89,0.06
+```
+
+### Evaluation
+
+Compute performance metrics on labeled test data:
+
+```bash
+# Evaluate with all metrics
+python -m csi_toolkit evaluate --dataset features/test.csv --model-dir models/model_20250113_143022
+
+# Compute specific metrics
+python -m csi_toolkit evaluate \
+  --dataset features/test.csv \
+  --model-dir models/model_20250113_143022 \
+  --metrics accuracy,f1_macro,f1_per_class
+
+# Custom output paths
+python -m csi_toolkit evaluate \
+  --dataset features/test.csv \
+  --model-dir models/model_20250113_143022 \
+  --output-json my_eval.json \
+  --output-txt my_eval.txt
+
+# List available metrics
+python -m csi_toolkit evaluate --list-metrics
+```
+
+**Available Metrics:**
+- `accuracy`: Overall classification accuracy
+- `precision_macro`: Macro-averaged precision
+- `precision_micro`: Micro-averaged precision
+- `recall_macro`: Macro-averaged recall
+- `recall_micro`: Micro-averaged recall
+- `f1_macro`: Macro-averaged F1 score
+- `f1_micro`: Micro-averaged F1 score
+- `precision_per_class`: Precision for each class individually
+- `recall_per_class`: Recall for each class individually
+- `f1_per_class`: F1 score for each class individually
+- `classification_report`: Comprehensive sklearn report
+- `confusion_matrix`: Confusion matrix with class labels
+
+**Evaluation outputs:**
+
+JSON (`evaluation_20250113_143022.json`):
+```json
+{
+  "accuracy": 0.9235,
+  "f1_macro": 0.9180,
+  "precision_macro": 0.9201,
+  "recall_macro": 0.9162,
+  "f1_per_class": {
+    "1": 0.95,
+    "2": 0.91,
+    "3": 0.89
+  }
+}
+```
+
+Text report (`evaluation_20250113_143022.txt`):
+```
+CSI Toolkit Model Evaluation Report
+==================================================
+
+Model: mlp
+Model Directory: models/model_20250113_143022
+Evaluation Date: 2025-01-13T14:30:22
+
+Model Info:
+  Classes: [1, 2, 3]
+  Features: 7
+
+Metrics:
+  accuracy: 0.9235
+  f1_macro: 0.9180
+  ...
+```
+
+### Model Directory Structure
+
+Each trained model creates a directory containing:
+
+```
+models/model_20250113_143022/
+├── model.pkl                    # Trained model (pickle format)
+├── metadata.json                # Model configuration and info
+├── training_log.txt             # Human-readable training summary
+├── predictions_20250113_150000.csv  # Inference outputs (if run)
+└── evaluation_20250113_160000.json  # Evaluation results (if run)
+```
+
+**metadata.json** structure:
+```json
+{
+  "model_type": "mlp",
+  "features": ["mean_amp", "std_amp", "max_amp", "min_amp", "mean_last3", "std_last3", "mean_last10"],
+  "n_features": 7,
+  "n_classes": 3,
+  "class_names": [1, 2, 3],
+  "training_date": "2025-01-13T14:30:22.123456",
+  "hyperparameters": {
+    "hidden_layer_sizes": [100, 50],
+    "max_iter": 500,
+    "learning_rate": "adaptive",
+    "solver": "adam",
+    "random_state": 42
+  },
+  "model_specific_params": {
+    "n_layers": 3,
+    "n_iter": 245,
+    "loss": 0.0823
+  },
+  "splits": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "random_seed": 42,
+  "val_accuracy": 0.9235
+}
+```
+
+This metadata ensures you can always reproduce training and understand what features the model expects.
+
+### Custom Models
+
+To implement a custom model, inherit from `BaseModel` and register it:
+
+```python
+# In src/csi_toolkit/ml/models/custom_models.py
+
+import numpy as np
+from .base import BaseModel
+from .registry import registry
+
+@registry.register(
+    'my_model',
+    description='My custom activity recognition model',
+    default_params={
+        'param1': 10,
+        'param2': 0.01,
+    }
+)
+class MyCustomModel(BaseModel):
+    """Custom model implementation."""
+
+    def __init__(self, param1=10, param2=0.01, **kwargs):
+        super().__init__(param1=param1, param2=param2, **kwargs)
+        # Initialize your model here
+        self.internal_model = None
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -> 'MyCustomModel':
+        """Train the model."""
+        # Store metadata
+        self.n_features_ = X.shape[1]
+        self.classes_ = np.unique(y)
+        self.n_classes_ = len(self.classes_)
+
+        # Train your model
+        # self.internal_model.fit(X, y)
+
+        self.is_fitted = True
+        return self
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Generate predictions."""
+        self._validate_fitted()
+        self._validate_features(X)
+
+        # Generate predictions
+        # return self.internal_model.predict(X)
+        pass
+
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        """Generate class probabilities."""
+        self._validate_fitted()
+        self._validate_features(X)
+
+        # Return probabilities or None if not supported
+        # return self.internal_model.predict_proba(X)
+        return None
+
+    def get_model_specific_params(self) -> dict:
+        """Get model-specific parameters for metadata."""
+        if not self.is_fitted:
+            return {}
+
+        return {
+            'param1': self.hyperparameters.get('param1'),
+            'param2': self.hyperparameters.get('param2'),
+            # Add any learned parameters
+        }
+
+    def save(self, path: str) -> None:
+        """Save model to disk."""
+        import pickle
+        if not self.is_fitted:
+            raise ValueError("Cannot save unfitted model")
+
+        model_data = {
+            'internal_model': self.internal_model,
+            'hyperparameters': self.hyperparameters,
+            'n_features_': self.n_features_,
+            'n_classes_': self.n_classes_,
+            'classes_': self.classes_,
+            'is_fitted': self.is_fitted,
+        }
+
+        with open(path, 'wb') as f:
+            pickle.dump(model_data, f)
+
+    def load(self, path: str) -> None:
+        """Load model from disk."""
+        import pickle
+        with open(path, 'rb') as f:
+            model_data = pickle.load(f)
+
+        self.internal_model = model_data['internal_model']
+        self.hyperparameters = model_data['hyperparameters']
+        self.n_features_ = model_data['n_features_']
+        self.n_classes_ = model_data['n_classes_']
+        self.classes_ = model_data['classes_']
+        self.is_fitted = model_data['is_fitted']
+```
+
+**Register your model** in `ml/models/__init__.py`:
+
+```python
+from . import custom_models  # Trigger registration
+```
+
+**Use your model:**
+
+```bash
+python -m csi_toolkit train features.csv --model my_model --params param1=20,param2=0.005
+```
+
+### Custom Metrics
+
+To add custom evaluation metrics, register them with the metric registry:
+
+```python
+# In src/csi_toolkit/ml/metrics/custom_metrics.py
+
+import numpy as np
+from .registry import registry
+
+@registry.register('my_metric', description='My custom evaluation metric')
+def my_metric(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """
+    Compute a custom metric.
+
+    Args:
+        y_true: Ground truth labels
+        y_pred: Predicted labels
+
+    Returns:
+        Metric value (float or dict for per-class metrics)
+    """
+    # Implement your metric calculation
+    correct = (y_true == y_pred).sum()
+    total = len(y_true)
+    return float(correct / total)
+
+# For metrics that need probabilities instead of labels
+@registry.register(
+    'my_proba_metric',
+    description='Metric requiring probability predictions',
+    requires_proba=True
+)
+def my_proba_metric(y_true: np.ndarray, y_proba: np.ndarray) -> float:
+    """
+    Compute a metric using probability predictions.
+
+    Args:
+        y_true: Ground truth labels
+        y_proba: Predicted probabilities (n_samples, n_classes)
+
+    Returns:
+        Metric value
+    """
+    # Implement metric using probabilities
+    pass
+```
+
+**Register your metrics** in `ml/metrics/__init__.py`:
+
+```python
+from . import custom_metrics  # Trigger registration
+```
+
+**Use your metrics:**
+
+```bash
+python -m csi_toolkit evaluate --dataset test.csv --model-dir models/model_X --metrics my_metric,accuracy
+```
+
 ## Data Format
 
 The CSI data follows this CSV schema:

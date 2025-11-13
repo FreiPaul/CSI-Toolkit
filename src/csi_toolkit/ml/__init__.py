@@ -1,11 +1,17 @@
-"""Machine learning utilities for CSI Toolkit (future implementation)."""
+"""Machine learning functionality for CSI Toolkit."""
 
-# Placeholder for future ML functionality
-# Potential features:
-# - Activity recognition models
-# - Gesture detection
-# - Localization algorithms
-# - Anomaly detection
-# - Time series classification
+from .training import ModelTrainer
+from .inference import ModelPredictor
+from .evaluation import ModelEvaluator
 
-__all__ = []
+# Import registries to trigger auto-registration
+from .models import registry as model_registry
+from .metrics import registry as metric_registry
+
+__all__ = [
+    'ModelTrainer',
+    'ModelPredictor',
+    'ModelEvaluator',
+    'model_registry',
+    'metric_registry',
+]
