@@ -270,3 +270,82 @@ class FeatureExtractor:
             Dictionary mapping feature names to descriptions
         """
         return {f.name: f.description for f in self.features}
+
+    def extract_window_features(
+        self,
+        window_samples: List[CSISample],
+        window_id: int = 0,
+        prev_windows: Optional[List[List[CSISample]]] = None,
+        next_windows: Optional[List[List[CSISample]]] = None
+    ) -> Dict[str, Any]:
+        """
+        Extract features from a single window of samples.
+
+        This is useful for live/real-time feature extraction where you have
+        a window of samples and want to compute features immediately.
+
+        Args:
+            window_samples: List of CSISample objects for the current window
+            window_id: ID to assign to this window (default: 0)
+            prev_windows: List of previous windows (each is a List[CSISample])
+                         Required if any features need previous context
+            next_windows: List of next windows (each is a List[CSISample])
+                         Required if any features need next context
+
+        Returns:
+            Dictionary with window metadata and feature values
+
+        Raises:
+            ValueError: If context windows are needed but not provided
+        """
+        # Create a WindowData object
+        window = WindowData(
+            window_id=window_id,
+            start_seq=window_samples[0].seq if window_samples else 0,
+            end_seq=window_samples[-1].seq if window_samples else 0,
+            samples=window_samples
+        )
+
+        # Check if we need context windows
+        if self.max_n_prev > 0 and (prev_windows is None or len(prev_windows) < self.max_n_prev):
+            raise ValueError(
+                f"Features require {self.max_n_prev} previous windows, "
+                f"but only {len(prev_windows) if prev_windows else 0} provided"
+            )
+
+        if self.max_n_next > 0 and (next_windows is None or len(next_windows) < self.max_n_next):
+            raise ValueError(
+                f"Features require {self.max_n_next} next windows, "
+                f"but only {len(next_windows) if next_windows else 0} provided"
+            )
+
+        # Build windows list for _calculate_features
+        # It expects a list where window_idx points to the current window
+        windows = []
+
+        # Add previous windows (if any)
+        if prev_windows:
+            for prev_samples in prev_windows:
+                windows.append(WindowData(
+                    window_id=-1,  # Dummy ID
+                    start_seq=prev_samples[0].seq if prev_samples else 0,
+                    end_seq=prev_samples[-1].seq if prev_samples else 0,
+                    samples=prev_samples
+                ))
+
+        # Add current window
+        current_window_idx = len(windows)
+        windows.append(window)
+
+        # Add next windows (if any)
+        if next_windows:
+            for next_samples in next_windows:
+                windows.append(WindowData(
+                    window_id=-1,  # Dummy ID
+                    start_seq=next_samples[0].seq if next_samples else 0,
+                    end_seq=next_samples[-1].seq if next_samples else 0,
+                    samples=next_samples
+                ))
+
+        # Calculate features
+        return self._calculate_features(windows, current_window_idx)

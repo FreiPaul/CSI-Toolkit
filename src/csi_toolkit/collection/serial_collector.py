@@ -24,6 +24,7 @@ class SerialCollector:
         config: CollectorConfig,
         callback: Optional[Callable[[List], None]] = None,
         debug: bool = False,
+        live_inference_handler=None,  # LiveInferenceHandler instance
     ):
         """
         Initialize serial collector.
@@ -32,10 +33,12 @@ class SerialCollector:
             config: Collector configuration
             callback: Optional callback for each processed row
             debug: Enable debug output for troubleshooting
+            live_inference_handler: Optional LiveInferenceHandler for real-time predictions
         """
         self.config = config
         self.callback = callback
         self.debug = debug
+        self.live_inference_handler = live_inference_handler
 
         self.serial_port = None
         self.csv_writer = None
@@ -47,6 +50,10 @@ class SerialCollector:
         # Labeling support
         self.current_label = 0  # Default: 0 = unlabeled
         self.keyboard_listener = None
+
+        # Live inference tracking
+        self.current_prediction = None
+        self.current_confidence = None
 
         # Setup signal handlers
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -97,11 +104,17 @@ class SerialCollector:
             # Open serial port
             self._open_serial()
 
+            # Prepare CSV header (add predicted_label if live inference is enabled)
+            header = CSV_HEADER.copy()
+            if self.live_inference_handler:
+                header.append('predicted_label')
+                print(f"[LIVE INFERENCE] Enabled - predictions will be saved to CSV")
+
             # Open CSV writer
             self.csv_writer = CSVWriter(
                 output_dir=self.config.output_dir,
                 flush_interval=self.config.flush_interval,
-                header=CSV_HEADER,
+                header=header,
             )
             self.csv_writer.open()
 
@@ -251,18 +264,36 @@ class SerialCollector:
         # Prepend type field and append label for CSV
         full_row = ['CSI_DATA'] + fields + [str(self.current_label)]
 
+        # Live inference (if enabled)
+        if self.live_inference_handler:
+            # Call the live inference handler
+            prediction_info = self.live_inference_handler.on_packet(full_row)
+
+            # Update current prediction if window was complete
+            if prediction_info:
+                self.current_prediction = prediction_info.get('prediction', 'Unknown')
+                self.current_confidence = prediction_info.get('confidence', 0.0)
+
+            # Add predicted label to the row (use current prediction or 'Unknown')
+            pred_label = self.current_prediction if self.current_prediction is not None else 'Unknown'
+            full_row.append(str(pred_label))
+
         # Write to CSV
         self.csv_writer.write_row(full_row)
         self.packet_count += 1
         self.startup_packets += 1
 
-        # Optional callback
+        # Optional callback (separate from live inference)
         if self.callback:
             self.callback(fields)
 
-        # Print progress
+        # Print progress with prediction if available
         if self.packet_count % 100 == 0:
-            print(f"Packets collected: {self.packet_count}, Errors: {self.error_count}", end='\r')
+            if self.live_inference_handler and self.current_prediction is not None:
+                conf_str = f" ({self.current_confidence:.2f})" if self.current_confidence else ""
+                print(f"Packets: {self.packet_count}, Errors: {self.error_count} | Prediction: {self.current_prediction}{conf_str}", end='\r')
+            else:
+                print(f"Packets collected: {self.packet_count}, Errors: {self.error_count}", end='\r')
 
     def get_statistics(self) -> dict:
         """
