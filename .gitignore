@@ -4,3 +4,5 @@
 *.pyc
 data
 src/data
+models
+*.egg-info

@@ -133,6 +133,153 @@ def process_command(args):
     return 0
 
 
+def train_command(args):
+    """Handle the train subcommand."""
+    from .ml import ModelTrainer, model_registry
+
+    # Handle --list-models first
+    if args.list_models:
+        print(model_registry.list_models())
+        return 0
+
+    # Validate input is provided
+    if not args.input:
+        print("Error: input file is required", file=sys.stderr)
+        print("Use --list-models to see available model types", file=sys.stderr)
+        return 1
+
+    # Parse model parameters if provided
+    model_params = {}
+    if args.params:
+        try:
+            # Parse key=value pairs
+            for param_str in args.params.split(','):
+                key, value = param_str.split('=')
+                # Try to convert to appropriate type
+                try:
+                    value = int(value)
+                except ValueError:
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        pass  # Keep as string
+                model_params[key.strip()] = value
+        except ValueError:
+            print("Error: Invalid parameter format. Use key=value,key=value", file=sys.stderr)
+            return 1
+
+    # Create trainer
+    try:
+        trainer = ModelTrainer(
+            model_type=args.model,
+            train_split=args.train_split,
+            val_split=args.val_split,
+            test_split=args.test_split,
+            random_seed=args.seed,
+            model_params=model_params
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    # Train model
+    try:
+        output_dir = trainer.train(
+            input_csv=args.input,
+            output_dir=args.output_dir
+        )
+        print(f"\n✓ Training completed successfully!")
+        print(f"Model saved to: {output_dir}")
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 1
+
+    return 0
+
+
+def inference_command(args):
+    """Handle the inference subcommand."""
+    from .ml import ModelPredictor
+
+    # Validate required arguments
+    if not args.dataset or not args.model_dir:
+        print("Error: --dataset and --model-dir are required", file=sys.stderr)
+        return 1
+
+    # Create predictor
+    try:
+        predictor = ModelPredictor(model_dir=args.model_dir)
+    except Exception as e:
+        print(f"Error loading model: {e}", file=sys.stderr)
+        return 1
+
+    # Run inference
+    try:
+        output_csv = predictor.run_inference(
+            input_csv=args.dataset,
+            output_csv=args.output,
+            include_probabilities=args.probabilities
+        )
+        print(f"\n✓ Inference completed successfully!")
+        print(f"Predictions saved to: {output_csv}")
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 1
+
+    return 0
+
+
+def evaluate_command(args):
+    """Handle the evaluate subcommand."""
+    from .ml import ModelEvaluator, metric_registry
+
+    # Handle --list-metrics first
+    if args.list_metrics:
+        print(metric_registry.list_metrics())
+        return 0
+
+    # Validate required arguments
+    if not args.dataset or not args.model_dir:
+        print("Error: --dataset and --model-dir are required", file=sys.stderr)
+        print("Use --list-metrics to see available metrics", file=sys.stderr)
+        return 1
+
+    # Parse metric names if provided
+    metric_names = None
+    if args.metrics:
+        metric_names = [m.strip() for m in args.metrics.split(',')]
+
+    # Create evaluator
+    try:
+        evaluator = ModelEvaluator(
+            model_dir=args.model_dir,
+            metric_names=metric_names
+        )
+    except Exception as e:
+        print(f"Error loading model: {e}", file=sys.stderr)
+        return 1
+
+    # Run evaluation
+    try:
+        metrics = evaluator.run_evaluation(
+            input_csv=args.dataset,
+            output_json=args.output_json,
+            output_txt=args.output_txt
+        )
+        print(f"\n✓ Evaluation completed successfully!")
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 1
+
+    return 0
+
+
 def info_command(args):
     """Handle the info subcommand."""
     print("CSI Toolkit - Channel State Information Processing Pipeline")
@@ -141,9 +288,16 @@ def info_command(args):
     print("  - Collection: Serial data acquisition from ESP32")
     print("  - Visualization: Real-time plotting with filtering")
     print("  - Processing: Signal processing and feature extraction")
+    print("  - Machine Learning: Model training, inference, and evaluation")
     print("  - I/O: CSV reading/writing with SSH support")
     print("\nData Flow:")
-    print("  ESP32 -> Serial -> CSV -> Processing -> Visualization")
+    print("  ESP32 -> Serial -> CSV -> Processing -> ML Training -> Inference")
+    print("\nML Workflow:")
+    print("  1. Collect labeled data: csi_toolkit collect")
+    print("  2. Extract features: csi_toolkit process --labeled")
+    print("  3. Train model: csi_toolkit train features.csv")
+    print("  4. Evaluate model: csi_toolkit evaluate --dataset test.csv --model-dir models/model_X")
+    print("  5. Run inference: csi_toolkit inference --dataset new.csv --model-dir models/model_X")
     print("\nFor detailed help on each command, use:")
     print("  python -m csi_toolkit <command> --help")
     return 0
@@ -306,6 +460,129 @@ def main():
         help='Number of windows to discard before/after label transitions (default: 1)',
     )
     process_parser.set_defaults(func=process_command)
+
+    # Train command
+    train_parser = subparsers.add_parser(
+        'train',
+        help='Train a machine learning model',
+        description='Train an ML model on labeled CSI features for activity recognition',
+    )
+    train_parser.add_argument(
+        'input',
+        nargs='?',  # Make optional for --list-models
+        help='Input CSV file with labeled features (from process --labeled)',
+    )
+    train_parser.add_argument(
+        '-m', '--model',
+        default='mlp',
+        help='Model type to train (default: mlp)',
+    )
+    train_parser.add_argument(
+        '-o', '--output-dir',
+        help='Output directory for model (default: auto-generated with timestamp)',
+        default=None,
+    )
+    train_parser.add_argument(
+        '--train-split',
+        type=float,
+        default=0.7,
+        help='Fraction of data for training (default: 0.7)',
+    )
+    train_parser.add_argument(
+        '--val-split',
+        type=float,
+        default=0.15,
+        help='Fraction of data for validation (default: 0.15)',
+    )
+    train_parser.add_argument(
+        '--test-split',
+        type=float,
+        default=0.15,
+        help='Fraction of data for testing (default: 0.15)',
+    )
+    train_parser.add_argument(
+        '--seed',
+        type=int,
+        default=42,
+        help='Random seed for reproducibility (default: 42)',
+    )
+    train_parser.add_argument(
+        '--params',
+        help='Model hyperparameters as key=value,key=value',
+        default=None,
+    )
+    train_parser.add_argument(
+        '--list-models',
+        action='store_true',
+        help='List available model types and exit',
+    )
+    train_parser.set_defaults(func=train_command)
+
+    # Inference command
+    inference_parser = subparsers.add_parser(
+        'inference',
+        help='Run model inference on new data',
+        description='Generate predictions using a trained model (labels not required)',
+    )
+    inference_parser.add_argument(
+        '--dataset',
+        required=True,
+        help='Input CSV file with features',
+    )
+    inference_parser.add_argument(
+        '--model-dir',
+        required=True,
+        help='Directory containing trained model',
+    )
+    inference_parser.add_argument(
+        '--output',
+        help='Output CSV file for predictions (default: in model directory)',
+        default=None,
+    )
+    inference_parser.add_argument(
+        '--probabilities',
+        action='store_true',
+        help='Include class probabilities in output',
+    )
+    inference_parser.set_defaults(func=inference_command)
+
+    # Evaluate command
+    evaluate_parser = subparsers.add_parser(
+        'evaluate',
+        help='Evaluate model performance',
+        description='Compute metrics on labeled test data',
+    )
+    evaluate_parser.add_argument(
+        '--dataset',
+        required=True,
+        help='Input CSV file with labeled features',
+    )
+    evaluate_parser.add_argument(
+        '--model-dir',
+        required=True,
+        help='Directory containing trained model',
+    )
+    evaluate_parser.add_argument(
+        '--metrics',
+        help='Comma-separated list of metrics to compute (default: all)',
+        default=None,
+    )
+    evaluate_parser.add_argument(
+        '--output-json',
+        help='Output JSON file for metrics (default: in model directory)',
+        default=None,
+    )
+    evaluate_parser.add_argument(
+        '--output-txt',
+        help='Output text file for report (default: in model directory)',
+        default=None,
+    )
+    evaluate_parser.add_argument(
+        '--list-metrics',
+        action='store_true',
+        help='List available metrics and exit',
+    )
+    evaluate_parser.set_defaults(func=evaluate_command)
 
     # Info command
     info_parser = subparsers.add_parser(
