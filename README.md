@@ -517,7 +517,8 @@ python -m csi_toolkit collect \
 
 - The `--window-size` must match the window size used during feature extraction and training
 - Model must be trained on the same features that are available in raw CSI data
-- Initial packets (first window) will show "Unknown" prediction
+- **Warmup period**: If your features use previous windows (like `mean_last10`), predictions will show "Waiting for history..." until enough windows are collected
+  - Example: `mean_last10` needs 9 previous windows, so predictions start at window 9
 - Live inference adds minimal overhead (~few milliseconds per window)
 - If feature extraction or prediction fails, "Unknown" is displayed
 

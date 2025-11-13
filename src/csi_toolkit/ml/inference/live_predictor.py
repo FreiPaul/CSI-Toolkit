@@ -63,12 +63,18 @@ class LiveInferenceHandler:
         self.last_prediction = None
         self.last_confidence = None
 
+        # Maintain history of previous windows for features that need context
+        self.window_history: List[List[CSISample]] = []
+        self.max_history_size = self.feature_extractor.max_n_prev
+
         if self.verbose:
             print(f"\nLive inference initialized:")
             print(f"  Model: {self.metadata['model_type']}")
             print(f"  Classes: {self.metadata['class_names']}")
             print(f"  Features: {len(feature_names)}")
             print(f"  Window size: {window_size}")
+            if self.max_history_size > 0:
+                print(f"  Requires {self.max_history_size} previous windows (predictions will start after window {self.max_history_size})")
             print()
 
     def on_packet(self, fields: List[str]) -> Optional[Dict[str, Any]]:
@@ -101,8 +107,18 @@ class LiveInferenceHandler:
                 # Extract the window
                 window_samples = self.buffer[:self.window_size]
 
-                # Perform prediction
-                prediction_info = self._predict_window(window_samples)
+                # Perform prediction (with previous windows if available)
+                prediction_info = self._predict_window(
+                    window_samples,
+                    prev_windows=self.window_history[-self.max_history_size:] if self.max_history_size > 0 else None
+                )
+
+                # Add this window to history
+                self.window_history.append(window_samples.copy())
+
+                # Maintain max history size
+                if len(self.window_history) > self.max_history_size:
+                    self.window_history.pop(0)
 
                 # Clear buffer (non-overlapping windows)
                 self.buffer = self.buffer[self.window_size:]
@@ -114,7 +130,9 @@ class LiveInferenceHandler:
 
                 # Display prediction
                 if self.verbose:
-                    self._display_prediction(prediction_info)
+                    # During warmup, only display every 3rd window to reduce noise
+                    if prediction_info['prediction'] != 'Unknown' or self.window_count % 3 == 0:
+                        self._display_prediction(prediction_info)
 
                 # Call callback if provided
                 if self.on_prediction:
@@ -141,10 +159,10 @@ class LiveInferenceHandler:
 
     def _fields_to_sample(self, fields: List[str]) -> CSISample:
         """
-        Convert CSV fields to CSISample object.
+        Convert CSV row fields to CSISample object.
 
         Args:
-            fields: List of field values from CSV row
+            fields: List of field values from CSV row (matching CSV_HEADER format)
 
         Returns:
             CSISample object
@@ -152,65 +170,58 @@ class LiveInferenceHandler:
         Raises:
             ValueError: If fields cannot be parsed
         """
-        from ...core.parser import parse_amplitude_json
+        from ...core.constants import CSV_HEADER
 
-        # Expected fields format from SerialCollector:
-        # ['CSI_DATA', type, seq, mac, rssi, fc, local_timestamp, data/amplitudes, label]
-
-        if len(fields) < 8:
-            raise ValueError(f"Invalid fields length: {len(fields)}")
+        # Convert list to dictionary using CSV_HEADER
+        # The fields list matches CSV_HEADER structure
+        if len(fields) < len(CSV_HEADER):
+            raise ValueError(f"Invalid fields length: {len(fields)}, expected at least {len(CSV_HEADER)}")
 
         try:
-            seq = int(fields[2])
-            mac = fields[3]
-            timestamp = fields[6]
+            # Create dictionary from fields
+            row_dict = {header: value for header, value in zip(CSV_HEADER, fields)}
 
-            # Check if we have amplitudes or need to calculate from data
-            amplitudes_or_data = fields[7]
+            # Use the existing CSISample.from_csv_row() method
+            # This reuses all the parsing logic from the processing step
+            sample = CSISample.from_csv_row(row_dict, labeled_mode=True)
 
-            # Try to parse as amplitudes (JSON array)
-            try:
-                amplitudes = parse_amplitude_json(amplitudes_or_data)
-                if not amplitudes:
-                    raise ValueError("Empty amplitudes")
-            except:
-                raise ValueError("Failed to parse amplitude data")
-
-            # Label is optional (might be '0' for unlabeled)
-            label = None
-            if len(fields) > 8 and fields[8]:
-                try:
-                    label = int(fields[8])
-                except (ValueError, TypeError):
-                    label = None
-
-            return CSISample(
-                seq=seq,
-                timestamp=timestamp,
-                mac=mac,
-                amplitudes=amplitudes,
-                label=label
-            )
+            return sample
 
         except Exception as e:
             raise ValueError(f"Failed to convert fields to CSISample: {e}")
 
-    def _predict_window(self, samples: List[CSISample]) -> Dict[str, Any]:
+    def _predict_window(
+        self,
+        samples: List[CSISample],
+        prev_windows: Optional[List[List[CSISample]]] = None
+    ) -> Dict[str, Any]:
         """
         Predict label for a window of samples.
 
         Args:
             samples: List of CSISample objects (should be window_size length)
+            prev_windows: List of previous windows (for features that need context)
 
         Returns:
             Dictionary with prediction info
         """
         try:
+            # Check if we have enough previous windows
+            if self.max_history_size > 0:
+                if prev_windows is None or len(prev_windows) < self.max_history_size:
+                    # Not enough history yet, return placeholder
+                    return {
+                        'prediction': 'Unknown',
+                        'confidence': 0.0,
+                        'window_num': self.window_count,
+                        'error': f'Need {self.max_history_size} previous windows (have {len(prev_windows) if prev_windows else 0})'
+                    }
+
             # Extract features using the feature extractor
             features_dict = self.feature_extractor.extract_window_features(
                 window_samples=samples,
                 window_id=self.window_count,
-                prev_windows=None,
+                prev_windows=prev_windows,
                 next_windows=None
             )
 
@@ -272,7 +283,11 @@ class LiveInferenceHandler:
 
         if pred == 'Unknown':
             error = prediction_info.get('error', 'Unknown error')
-            print(f"[Window {win_num}] Prediction: Unknown (Error: {error})")
+            # Check if it's the "not enough history" case
+            if 'Need' in error and 'previous windows' in error:
+                print(f"[Window {win_num}] Prediction: Waiting for history... ({error})")
+            else:
+                print(f"[Window {win_num}] Prediction: Unknown (Error: {error})")
         else:
             print(f"[Window {win_num}] Prediction: {pred} (confidence: {conf:.2f})")
 
