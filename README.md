@@ -71,6 +71,36 @@ BAUDRATE=921600
 FLUSH_INTERVAL=1
 ```
 
+### Labeled Data Collection
+
+Collect labeled CSI data for machine learning by pressing number keys during collection:
+
+**Keyboard Controls:**
+- Keys **1-9**: Set current class label (1-9)
+- Key **0**: Return to unlabeled state (background)
+- Labels are recorded in real-time with each CSI sample
+
+```bash
+# Start collection with labeling support (automatic)
+python -m csi_toolkit collect
+
+# During collection, press number keys to label activities:
+# Press 1 when performing Activity A
+# Press 2 when performing Activity B
+# Press 0 to mark unlabeled/background periods
+```
+
+**Workflow Example:**
+1. Start data collection: `python -m csi_toolkit collect`
+2. Wait for baseline data (label stays at 0)
+3. Begin Activity 1, press key `1`
+4. Perform activity for several seconds
+5. Return to baseline, press key `0`
+6. Begin Activity 2, press key `2`
+7. Stop collection with Ctrl+C
+
+The CSV file will include a `label` column with the class label (0-9) for each sample.
+
 ### Live Visualization
 
 Plot CSI amplitude data in real-time:
@@ -108,7 +138,45 @@ python -m csi_toolkit process input.csv output.csv --features mean_amp,std_amp,m
 
 # List available features
 python -m csi_toolkit process --list-features
+
+# Process labeled data (includes labels, filters transitions)
+python -m csi_toolkit process input.csv output.csv --labeled
+
+# Adjust transition buffer (default: 1 window before/after)
+python -m csi_toolkit process input.csv output.csv --labeled --transition-buffer 2
 ```
+
+#### Labeled Mode Processing
+
+When processing labeled data collected with keyboard input:
+
+**Enable Labeled Mode:**
+```bash
+python -m csi_toolkit process labeled_data.csv features.csv --labeled
+```
+
+**Behavior:**
+- Reads label from each sample in the CSV
+- Adds `label` column to output features
+- **Discards transition windows**: Windows where ANY sample has a different label
+- **Applies buffer**: Also discards N windows before/after each transition (default: 1)
+
+**Transition Window Handling:**
+
+Windows are discarded if they contain label transitions, plus a configurable buffer:
+
+```
+Window:    0  1  2  3  4  5  6  7  8  9
+Label:     1  1  1  2  2  2  2  3  3  3
+                    ^              ^
+                transition      transition
+
+With --transition-buffer 1 (default):
+Discarded: windows 2, 3, 4 and windows 6, 7, 8
+Output:    windows 0, 1, 5, 9 (with labels 1, 1, 2, 3)
+```
+
+This ensures clean, homogeneous windows for training machine learning models.
 
 #### Available Features
 
@@ -143,15 +211,25 @@ For example, with `mean_last10` (requires 9 previous windows):
 
 The output CSV contains one row per window with the following structure:
 
+**Standard Mode:**
 ```csv
 window_id,start_seq,end_seq,mean_amp,std_amp,max_amp,min_amp,mean_last3,std_last3,mean_last10
 9,900,999,45.2,3.1,52.3,38.1,45.0,1.9,44.8
 10,1000,1099,46.1,2.9,51.8,39.0,45.5,0.7,45.1
 ```
 
+**Labeled Mode (--labeled):**
+```csv
+window_id,start_seq,end_seq,label,mean_amp,std_amp,max_amp,min_amp,mean_last3,std_last3,mean_last10
+9,900,999,1,45.2,3.1,52.3,38.1,45.0,1.9,44.8
+10,1000,1099,1,46.1,2.9,51.8,39.0,45.5,0.7,45.1
+```
+
+**Columns:**
 - `window_id`: Index of the window
 - `start_seq`: Sequence number of first sample in window
 - `end_seq`: Sequence number of last sample in window
+- `label`: Class label (0-9) when using --labeled flag
 - Feature columns: One per registered feature
 
 #### Custom Features

@@ -11,12 +11,19 @@ from .features import registry, FeatureConfig
 class FeatureExtractor:
     """Extract features from windowed CSI data."""
 
-    def __init__(self, feature_names: Optional[List[str]] = None):
+    def __init__(
+        self,
+        feature_names: Optional[List[str]] = None,
+        labeled_mode: bool = False,
+        transition_buffer: int = 1
+    ):
         """
         Initialize feature extractor.
 
         Args:
             feature_names: List of feature names to extract (None = all features)
+            labeled_mode: If True, include labels and filter transition windows
+            transition_buffer: Number of windows to discard before/after transitions
 
         Raises:
             ValueError: If any feature name is not registered
@@ -29,6 +36,10 @@ class FeatureExtractor:
         # Calculate max context windows needed
         self.max_n_prev = max(f.n_prev_windows for f in self.features) if self.features else 0
         self.max_n_next = max(f.n_next_windows for f in self.features) if self.features else 0
+
+        # Labeled mode settings
+        self.labeled_mode = labeled_mode
+        self.transition_buffer = transition_buffer
 
     def process_file(
         self,
@@ -68,16 +79,28 @@ class FeatureExtractor:
                 f"requested features, but only have {len(windows)}"
             )
 
+        # Find windows to discard due to label transitions (if in labeled mode)
+        discard_windows = set()
+        if self.labeled_mode:
+            transition_windows = self._find_transition_windows(windows)
+            discard_windows = self._expand_buffer(transition_windows, len(windows))
+            print(f"Found {len(transition_windows)} transition windows, discarding {len(discard_windows)} total (with buffer={self.transition_buffer})")
+
         print(f"Extracting features (requires {self.max_n_prev} prev, {self.max_n_next} next windows)...")
         results = []
         valid_start = self.max_n_prev
         valid_end = len(windows) - self.max_n_next
 
         for i in range(valid_start, valid_end):
+            # Skip windows with label transitions
+            if i in discard_windows:
+                continue
+
             features = self._calculate_features(windows, i)
             results.append(features)
 
-        print(f"Calculated features for {len(results)} windows (skipped {valid_start} start, {self.max_n_next} end)")
+        skipped_count = (valid_end - valid_start) - len(results)
+        print(f"Calculated features for {len(results)} windows (skipped {valid_start} start, {self.max_n_next} end, {skipped_count} transitions)")
 
         print(f"Writing features to {output_csv}...")
         self._write_csv(output_csv, results)
@@ -98,12 +121,56 @@ class FeatureExtractor:
             reader = csv.DictReader(f)
             for row in reader:
                 try:
-                    sample = CSISample.from_csv_row(row)
+                    sample = CSISample.from_csv_row(row, labeled_mode=self.labeled_mode)
                     samples.append(sample)
                 except (ValueError, KeyError):
                     # Skip invalid rows silently
                     pass
         return samples
+
+    def _find_transition_windows(self, windows: List[WindowData]) -> set:
+        """
+        Find windows where label transitions occur.
+
+        A window is marked for transition if ANY sample in the window
+        has a different label from the others.
+
+        Args:
+            windows: List of all windows
+
+        Returns:
+            Set of window IDs that contain label transitions
+        """
+        transition_windows = set()
+        for window in windows:
+            labels = [sample.label for sample in window.samples]
+            # If more than one unique label, it's a transition window
+            if len(set(labels)) > 1:
+                transition_windows.add(window.window_id)
+        return transition_windows
+
+    def _expand_buffer(self, transition_windows: set, total_windows: int) -> set:
+        """
+        Expand transition windows to include buffer zones.
+
+        Adds N windows before and after each transition window,
+        where N is self.transition_buffer.
+
+        Args:
+            transition_windows: Set of window IDs with transitions
+            total_windows: Total number of windows
+
+        Returns:
+            Set of all window IDs to discard (transitions + buffers)
+        """
+        discard = set(transition_windows)
+        for win_id in transition_windows:
+            # Add buffer windows before and after
+            for offset in range(-self.transition_buffer, self.transition_buffer + 1):
+                buffered_id = win_id + offset
+                if 0 <= buffered_id < total_windows:
+                    discard.add(buffered_id)
+        return discard
 
     def _calculate_features(
         self,
@@ -128,6 +195,10 @@ class FeatureExtractor:
             'start_seq': window.start_seq,
             'end_seq': window.end_seq,
         }
+
+        # Add label if in labeled mode (all samples have same label)
+        if self.labeled_mode and window.samples:
+            row['label'] = window.samples[0].label
 
         # Calculate each feature
         for feature_config in self.features:

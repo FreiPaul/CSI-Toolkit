@@ -107,7 +107,11 @@ def process_command(args):
 
     # Create feature extractor
     try:
-        extractor = FeatureExtractor(feature_names)
+        extractor = FeatureExtractor(
+            feature_names,
+            labeled_mode=args.labeled,
+            transition_buffer=args.transition_buffer
+        )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         print(f"\nAvailable features: {', '.join(registry.list_names())}")
@@ -289,6 +293,17 @@ def main():
         '--list-features',
         action='store_true',
         help='List available features and exit',
+    )
+    process_parser.add_argument(
+        '--labeled',
+        action='store_true',
+        help='Enable labeled mode: include labels in output and filter transition windows',
+    )
+    process_parser.add_argument(
+        '--transition-buffer',
+        type=int,
+        default=1,
+        help='Number of windows to discard before/after label transitions (default: 1)',
     )
     process_parser.set_defaults(func=process_command)
 
