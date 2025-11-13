@@ -4,10 +4,9 @@ import serial
 import signal
 import sys
 import time
+import threading
 from datetime import datetime
 from typing import Optional, List, Callable
-
-from pynput import keyboard
 
 from .config import CollectorConfig
 from ..core.parser import parse_csi_line, parse_amplitude_json
@@ -49,7 +48,8 @@ class SerialCollector:
 
         # Labeling support
         self.current_label = 0  # Default: 0 = unlabeled
-        self.keyboard_listener = None
+        self.keyboard_thread = None
+        self.keyboard_running = False
 
         # Live inference tracking
         self.current_prediction = None
@@ -64,26 +64,71 @@ class SerialCollector:
         print("\nShutdown signal received. Cleaning up...")
         self.stop()
 
-    def _on_key_press(self, key):
+    def _keyboard_input_thread(self):
         """
-        Handle keyboard input for labeling.
+        Thread function to handle keyboard input for labeling.
 
+        Works over SSH by reading from stdin.
         Keys 0-9 set the current label (0 = unlabeled, 1-9 = class labels).
+        """
+        # Platform-specific imports
+        try:
+            import tty
+            import termios
+            import select
+            unix_compatible = True
+        except ImportError:
+            # Windows fallback
+            try:
+                import msvcrt
+                unix_compatible = False
+            except ImportError:
+                print("[WARNING] Keyboard input not available on this platform")
+                return
+
+        if unix_compatible:
+            # Unix/Linux (including Raspberry Pi over SSH)
+            old_settings = None
+            try:
+                # Save terminal settings
+                old_settings = termios.tcgetattr(sys.stdin)
+                # Set terminal to raw mode for single character input
+                tty.setcbreak(sys.stdin.fileno())
+
+                while self.keyboard_running:
+                    # Use select to check if input is available (non-blocking with timeout)
+                    if select.select([sys.stdin], [], [], 0.1)[0]:
+                        char = sys.stdin.read(1)
+                        self._process_key_input(char)
+            finally:
+                # Restore terminal settings
+                if old_settings:
+                    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        else:
+            # Windows
+            while self.keyboard_running:
+                if msvcrt.kbhit():
+                    char = msvcrt.getch().decode('utf-8', errors='ignore')
+                    self._process_key_input(char)
+                time.sleep(0.1)
+
+    def _process_key_input(self, char: str):
+        """
+        Process a single key input character.
 
         Args:
-            key: Key pressed (from pynput)
+            char: Character pressed
         """
-        try:
-            # Check if it's a character key
-            if hasattr(key, 'char') and key.char is not None and key.char in '0123456789':
-                new_label = int(key.char)
-                if new_label != self.current_label:
-                    self.current_label = new_label
-                    label_name = "unlabeled" if new_label == 0 else f"class {new_label}"
-                    print(f"\n[LABEL] Changed to: {label_name} ({new_label})")
-        except Exception as e:
-            # Silently ignore errors (e.g., special keys)
-            pass
+        if char in '0123456789':
+            new_label = int(char)
+            if new_label != self.current_label:
+                self.current_label = new_label
+                label_name = "unlabeled" if new_label == 0 else f"class {new_label}"
+                print(f"\n[LABEL] Changed to: {label_name} ({new_label})")
+        elif char == 'q':
+            # Allow 'q' to quit
+            print("\n[QUIT] Stopping collection...")
+            self.stop()
 
     def start(self):
         """Start collecting data from serial port."""
@@ -94,12 +139,14 @@ class SerialCollector:
         print(f"Starting CSI data collection")
         print(self.config)
         print("\n[LABELING] Press keys 0-9 to set label (0=unlabeled, 1-9=classes)")
+        print(f"[LABELING] Press 'q' to quit collection")
         print(f"[LABELING] Current label: {self.current_label} (unlabeled)")
 
         try:
-            # Start keyboard listener
-            self.keyboard_listener = keyboard.Listener(on_press=self._on_key_press)
-            self.keyboard_listener.start()
+            # Start keyboard input thread
+            self.keyboard_running = True
+            self.keyboard_thread = threading.Thread(target=self._keyboard_input_thread, daemon=True)
+            self.keyboard_thread.start()
 
             # Open serial port
             self._open_serial()
@@ -132,10 +179,10 @@ class SerialCollector:
         """Stop data collection and clean up resources."""
         self.running = False
 
-        # Stop keyboard listener
-        if self.keyboard_listener:
-            self.keyboard_listener.stop()
-            self.keyboard_listener = None
+        # Stop keyboard input thread
+        self.keyboard_running = False
+        if self.keyboard_thread and self.keyboard_thread.is_alive():
+            self.keyboard_thread.join(timeout=1.0)
 
         # Close serial port
         if self.serial_port and self.serial_port.is_open:
