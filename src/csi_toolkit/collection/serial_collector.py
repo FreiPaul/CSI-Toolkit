@@ -59,7 +59,7 @@ class SerialCollector:
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self, _signum, _frame):
         """Handle shutdown signals gracefully."""
         print("\nShutdown signal received. Cleaning up...")
         self.stop()

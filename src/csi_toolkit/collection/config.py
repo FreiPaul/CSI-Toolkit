@@ -35,13 +35,25 @@ class CollectorConfig:
             env_file: Path to .env file
         """
         # Load environment variables
+        self._env_file_loaded = None
         if env_file:
             env_path = Path(env_file)
             if env_path.exists():
-                load_dotenv(env_path)
+                load_dotenv(env_path, override=True)
+                self._env_file_loaded = str(env_path)
+            else:
+                raise ConfigurationError(f"Specified .env file not found: {env_file}")
         else:
-            # Try to load default .env
-            load_dotenv()
+            # Try to load .env from current working directory first
+            cwd_env = Path.cwd() / '.env'
+            if cwd_env.exists():
+                load_dotenv(cwd_env, override=True)
+                self._env_file_loaded = str(cwd_env)
+            else:
+                # Fall back to search in parent directories
+                result = load_dotenv(override=True)
+                if result:
+                    self._env_file_loaded = "found in parent directory"
 
         # Set configuration with fallback to env vars and defaults
         self.serial_port = (
@@ -105,11 +117,12 @@ class CollectorConfig:
 
     def __str__(self) -> str:
         """String representation of configuration."""
+        env_info = f"\n  env_file={self._env_file_loaded}" if self._env_file_loaded else "\n  env_file=not loaded"
         return (
             f"CollectorConfig(\n"
             f"  serial_port={self.serial_port},\n"
             f"  baudrate={self.baudrate},\n"
             f"  flush_interval={self.flush_interval},\n"
-            f"  output_dir={self.output_dir}\n"
+            f"  output_dir={self.output_dir},{env_info}\n"
             f")"
         )
