@@ -1,7 +1,7 @@
 """Windowing utilities for CSI data processing."""
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 
 @dataclass
@@ -12,14 +12,16 @@ class CSISample:
     timestamp: str
     mac: str
     amplitudes: List[float]  # Amplitude values for all subcarriers
+    label: Optional[int] = None  # Optional class label (0-9)
 
     @classmethod
-    def from_csv_row(cls, row: dict) -> 'CSISample':
+    def from_csv_row(cls, row: dict, labeled_mode: bool = False) -> 'CSISample':
         """
         Create CSISample from CSV row dictionary.
 
         Args:
             row: Dictionary from CSV DictReader
+            labeled_mode: If True, extract label from row
 
         Returns:
             CSISample instance
@@ -34,6 +36,15 @@ class CSISample:
         timestamp = row.get('local_timestamp', '')
         mac = row.get('mac', '')
 
+        # Extract label if in labeled mode
+        label = None
+        if labeled_mode:
+            label_str = row.get('label', '0')
+            try:
+                label = int(label_str)
+            except (ValueError, TypeError):
+                label = 0  # Default to unlabeled if parsing fails
+
         # Try to get pre-calculated amplitudes first
         amplitudes_str = row.get('amplitudes', '')
         if amplitudes_str and amplitudes_str != '[]':
@@ -44,7 +55,8 @@ class CSISample:
                         seq=seq,
                         timestamp=timestamp,
                         mac=mac,
-                        amplitudes=amplitudes
+                        amplitudes=amplitudes,
+                        label=label
                     )
             except:
                 pass  # Fall through to calculate from Q,I data
@@ -65,7 +77,8 @@ class CSISample:
             seq=seq,
             timestamp=timestamp,
             mac=mac,
-            amplitudes=amplitudes
+            amplitudes=amplitudes,
+            label=label
         )
 
 

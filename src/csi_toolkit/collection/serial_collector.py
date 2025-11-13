@@ -7,6 +7,8 @@ import time
 from datetime import datetime
 from typing import Optional, List, Callable
 
+from pynput import keyboard
+
 from .config import CollectorConfig
 from ..core.parser import parse_csi_line, parse_amplitude_json
 from ..core.constants import CSV_HEADER
@@ -42,6 +44,10 @@ class SerialCollector:
         self.error_count = 0
         self.startup_packets = 0  # Track initial packets for debugging
 
+        # Labeling support
+        self.current_label = 0  # Default: 0 = unlabeled
+        self.keyboard_listener = None
+
         # Setup signal handlers
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -51,6 +57,27 @@ class SerialCollector:
         print("\nShutdown signal received. Cleaning up...")
         self.stop()
 
+    def _on_key_press(self, key):
+        """
+        Handle keyboard input for labeling.
+
+        Keys 0-9 set the current label (0 = unlabeled, 1-9 = class labels).
+
+        Args:
+            key: Key pressed (from pynput)
+        """
+        try:
+            # Check if it's a character key
+            if hasattr(key, 'char') and key.char is not None and key.char in '0123456789':
+                new_label = int(key.char)
+                if new_label != self.current_label:
+                    self.current_label = new_label
+                    label_name = "unlabeled" if new_label == 0 else f"class {new_label}"
+                    print(f"\n[LABEL] Changed to: {label_name} ({new_label})")
+        except Exception as e:
+            # Silently ignore errors (e.g., special keys)
+            pass
+
     def start(self):
         """Start collecting data from serial port."""
         if self.running:
@@ -59,8 +86,14 @@ class SerialCollector:
         self.running = True
         print(f"Starting CSI data collection")
         print(self.config)
+        print("\n[LABELING] Press keys 0-9 to set label (0=unlabeled, 1-9=classes)")
+        print(f"[LABELING] Current label: {self.current_label} (unlabeled)")
 
         try:
+            # Start keyboard listener
+            self.keyboard_listener = keyboard.Listener(on_press=self._on_key_press)
+            self.keyboard_listener.start()
+
             # Open serial port
             self._open_serial()
 
@@ -85,6 +118,11 @@ class SerialCollector:
     def stop(self):
         """Stop data collection and clean up resources."""
         self.running = False
+
+        # Stop keyboard listener
+        if self.keyboard_listener:
+            self.keyboard_listener.stop()
+            self.keyboard_listener = None
 
         # Close serial port
         if self.serial_port and self.serial_port.is_open:
@@ -210,8 +248,8 @@ class SerialCollector:
             fields.append("[]")  # Empty amplitudes on error
             self.error_count += 1
 
-        # Prepend type field for CSV
-        full_row = ['CSI_DATA'] + fields
+        # Prepend type field and append label for CSV
+        full_row = ['CSI_DATA'] + fields + [str(self.current_label)]
 
         # Write to CSV
         self.csv_writer.write_row(full_row)
