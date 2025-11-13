@@ -2,10 +2,27 @@
 
 import time
 import threading
-from typing import Optional, List, Tuple
+from typing import Optional, List
 from collections import deque
+import matplotlib
+
+# Try to set a backend that works on the current system
+# Priority: MacOSX (native on macOS) > TkAgg > Qt5Agg > automatic
+try:
+    import platform
+    if platform.system() == 'Darwin':  # macOS
+        matplotlib.use('MacOSX')
+    else:
+        # Try TkAgg for other platforms
+        try:
+            matplotlib.use('TkAgg')
+        except:
+            pass  # Let matplotlib choose automatically
+except:
+    pass  # Let matplotlib use default backend
+
 import matplotlib.pyplot as plt
-from pathlib import Path
+import matplotlib.animation as animation
 
 from ..core.parser import parse_amplitude_json
 from ..processing.amplitude import compute_mean_amplitude
@@ -43,7 +60,7 @@ class LivePlotter:
         self.subcarrier = subcarrier
         self.refresh_rate = refresh_rate
         self.max_points = max_points
-        self.display_limit = display_limit
+        self.display_limit = display_limit or 500  # Default display limit
         self.filter_type = filter_type
         self.filter_params = filter_params or {}
 
@@ -56,7 +73,6 @@ class LivePlotter:
         self.lock = threading.Lock()
         self.running = False
         self.reader = None
-        self.plot_thread = None
 
         # Matplotlib setup
         self.fig = None
@@ -66,6 +82,7 @@ class LivePlotter:
         self.line1_filtered = None
         self.line2_raw = None
         self.line2_filtered = None
+        self.ani = None
 
     def start(self):
         """Start live plotting."""
@@ -94,12 +111,21 @@ class LivePlotter:
         # Setup plot
         self._setup_plot()
 
-        # Start plotting loop
-        self.plot_thread = threading.Thread(target=self._plot_loop, daemon=True)
-        self.plot_thread.start()
+        # Use matplotlib animation for thread-safe updates
+        self.ani = animation.FuncAnimation(
+            self.fig,
+            self._update_plot_animation,
+            interval=int(self.refresh_rate * 1000),  # Convert to milliseconds
+            blit=False,
+            cache_frame_data=False
+        )
 
-        # Keep matplotlib window open
-        plt.show()
+        try:
+            plt.show()
+        except KeyboardInterrupt:
+            print("\nPlotting stopped by user")
+        finally:
+            self.stop()
 
     def stop(self):
         """Stop live plotting."""
@@ -107,9 +133,6 @@ class LivePlotter:
 
         if self.reader:
             self.reader.stop()
-
-        if self.plot_thread:
-            self.plot_thread.join(timeout=1.0)
 
         plt.close('all')
 
@@ -149,13 +172,12 @@ class LivePlotter:
                 self.mean_amplitudes.append(mean_amp)
                 self.subcarrier_amplitudes.append(subcarrier_amp)
 
-        except Exception as e:
+        except Exception:
             # Silently skip bad rows
             pass
 
     def _setup_plot(self):
         """Setup matplotlib figure and axes."""
-        plt.ion()  # Interactive mode
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(12, 8))
 
         # Setup top plot (mean amplitude)
@@ -178,82 +200,54 @@ class LivePlotter:
 
         plt.tight_layout()
 
-    def _plot_loop(self):
-        """Main plotting loop."""
-        while self.running:
-            try:
-                # Get data from buffers (thread-safe)
-                with self.lock:
-                    seq_nums = list(self.sequence_numbers)
-                    mean_amps = list(self.mean_amplitudes)
-                    sub_amps = list(self.subcarrier_amplitudes)
-
-                if not seq_nums:
-                    time.sleep(self.refresh_rate)
-                    continue
-
-                # Apply display limit if specified
-                if self.display_limit and len(seq_nums) > self.display_limit:
-                    seq_nums = seq_nums[-self.display_limit:]
-                    mean_amps = mean_amps[-self.display_limit:]
-                    sub_amps = sub_amps[-self.display_limit:]
-
-                # Apply filtering
-                filtered_mean = apply_filter(
-                    mean_amps,
-                    self.filter_type,
-                    **self.filter_params
-                )
-                filtered_sub = apply_filter(
-                    sub_amps,
-                    self.filter_type,
-                    **self.filter_params
-                )
-
-                # Update plots
-                self._update_plots(
-                    seq_nums,
-                    mean_amps, filtered_mean,
-                    sub_amps, filtered_sub
-                )
-
-                # Refresh display
-                plt.pause(self.refresh_rate)
-
-            except Exception as e:
-                print(f"Plot error: {e}")
-                break
-
-    def _update_plots(
-        self,
-        seq_nums: List[int],
-        mean_raw: List[float],
-        mean_filtered: List[float],
-        sub_raw: List[float],
-        sub_filtered: List[float]
-    ):
+    def _update_plot_animation(self, frame):
         """
-        Update plot lines with new data.
+        Update plot (called by FuncAnimation).
 
         Args:
-            seq_nums: Sequence numbers for x-axis
-            mean_raw: Raw mean amplitude values
-            mean_filtered: Filtered mean amplitude values
-            sub_raw: Raw subcarrier amplitude values
-            sub_filtered: Filtered subcarrier amplitude values
+            frame: Frame number (not used)
         """
-        # Update mean amplitude plot
-        self.line1_raw.set_data(seq_nums, mean_raw)
-        self.line1_filtered.set_data(seq_nums, mean_filtered)
+        # Get data from buffers (thread-safe)
+        with self.lock:
+            seq_nums = list(self.sequence_numbers)
+            mean_amps = list(self.mean_amplitudes)
+            sub_amps = list(self.subcarrier_amplitudes)
 
-        # Update subcarrier plot
-        self.line2_raw.set_data(seq_nums, sub_raw)
-        self.line2_filtered.set_data(seq_nums, sub_filtered)
+        if not seq_nums:
+            return self.line1_raw, self.line1_filtered, self.line2_raw, self.line2_filtered
+
+        # Apply display limit
+        if len(seq_nums) > self.display_limit:
+            seq_nums = seq_nums[-self.display_limit:]
+            mean_amps = mean_amps[-self.display_limit:]
+            sub_amps = sub_amps[-self.display_limit:]
+
+        # Apply filtering
+        if len(mean_amps) > 1:
+            filtered_mean = apply_filter(
+                mean_amps,
+                self.filter_type,
+                **self.filter_params
+            )
+            filtered_sub = apply_filter(
+                sub_amps,
+                self.filter_type,
+                **self.filter_params
+            )
+        else:
+            filtered_mean = mean_amps
+            filtered_sub = sub_amps
+
+        # Update plot data
+        self.line1_raw.set_data(seq_nums, mean_amps)
+        self.line1_filtered.set_data(seq_nums, filtered_mean)
+        self.line2_raw.set_data(seq_nums, sub_amps)
+        self.line2_filtered.set_data(seq_nums, filtered_sub)
 
         # Adjust axes limits
         for ax, raw_data, filtered_data in [
-            (self.ax1, mean_raw, mean_filtered),
-            (self.ax2, sub_raw, sub_filtered)
+            (self.ax1, mean_amps, filtered_mean),
+            (self.ax2, sub_amps, filtered_sub)
         ]:
             ax.relim()
             ax.autoscale_view()
@@ -265,3 +259,5 @@ class LivePlotter:
                 y_range = y_max - y_min
                 if y_range > 0:
                     ax.set_ylim(y_min - 0.1 * y_range, y_max + 0.1 * y_range)
+
+        return self.line1_raw, self.line1_filtered, self.line2_raw, self.line2_filtered

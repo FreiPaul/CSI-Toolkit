@@ -145,7 +145,7 @@ class CSVTailer:
             return
 
         # Open file and read header
-        self.file = open(self.file_path, 'r')
+        self.file = open(self.file_path, 'r', newline='')
         self.reader = csv.DictReader(self.file)
         self.header = self.reader.fieldnames
 
@@ -161,7 +161,10 @@ class CSVTailer:
         # Tail the file for new rows
         while self.running:
             try:
-                # Check for new rows
+                # Save current position
+                current_pos = self.file.tell()
+
+                # Try to read new rows
                 new_rows = []
                 for row in self.reader:
                     new_rows.append(row)
@@ -173,11 +176,23 @@ class CSVTailer:
                     if callback:
                         for row in new_rows:
                             callback(row)
+                else:
+                    # No new data, check if file has grown
+                    self.file.seek(0, 2)  # Go to end
+                    end_pos = self.file.tell()
+                    if end_pos > current_pos:
+                        # File has grown, go back to where we were
+                        self.file.seek(current_pos)
+                    else:
+                        # No new data, restore position
+                        self.file.seek(current_pos)
 
                 time.sleep(self.poll_interval)
 
             except Exception as e:
                 print(f"Error tailing file: {e}")
+                import traceback
+                traceback.print_exc()
                 break
 
         # Clean up

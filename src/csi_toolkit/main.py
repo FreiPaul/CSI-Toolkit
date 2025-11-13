@@ -62,11 +62,14 @@ def plot_command(args):
     )
 
     try:
+        # Start will now block until the window is closed
         plotter.start()
     except KeyboardInterrupt:
         print("\nPlotting stopped by user")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         return 1
 
     return 0

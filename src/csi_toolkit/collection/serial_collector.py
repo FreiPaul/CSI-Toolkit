@@ -210,8 +210,11 @@ class SerialCollector:
             fields.append("[]")  # Empty amplitudes on error
             self.error_count += 1
 
+        # Prepend type field for CSV
+        full_row = ['CSI_DATA'] + fields
+
         # Write to CSV
-        self.csv_writer.write_row(fields)
+        self.csv_writer.write_row(full_row)
         self.packet_count += 1
         self.startup_packets += 1
 
