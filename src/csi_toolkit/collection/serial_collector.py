@@ -305,8 +305,9 @@ class SerialCollector:
                 print(f"Amplitude processing error #{self.error_count + 1}: {e}")
                 if self.error_count == 10:
                     print("(Further errors will be shown every 100 occurrences)")
-            fields.append("[]")  # Empty amplitudes on error
             self.error_count += 1
+            # Skip writing this sample to CSV
+            return
 
         # Prepend type field and append label for CSV
         full_row = ['CSI_DATA'] + fields + [str(self.current_label)]
