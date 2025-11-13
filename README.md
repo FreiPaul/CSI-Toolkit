@@ -92,6 +92,98 @@ python -m csi_toolkit plot data/current.csv --fs 100 --fc 2.0 --order 4
 python -m csi_toolkit plot data/current.csv --limit 1000
 ```
 
+### Feature Extraction
+
+Convert raw CSI data into windowed features for machine learning:
+
+```bash
+# Extract all features with default window size (100 samples)
+python -m csi_toolkit process input.csv output.csv
+
+# Custom window size
+python -m csi_toolkit process input.csv output.csv --window-size 50
+
+# Extract specific features only
+python -m csi_toolkit process input.csv output.csv --features mean_amp,std_amp,mean_last3
+
+# List available features
+python -m csi_toolkit process --list-features
+```
+
+#### Available Features
+
+**Basic Features** (calculated from single window):
+- `mean_amp`: Mean carrier amplitude in window
+- `std_amp`: Standard deviation of carrier amplitude in window
+- `max_amp`: Maximum carrier amplitude in window
+- `min_amp`: Minimum carrier amplitude in window
+
+**Temporal Features** (calculated from multiple windows):
+- `mean_last3`: Mean carrier amplitude across last 3 windows (requires 2 previous windows)
+- `mean_last10`: Mean carrier amplitude across last 10 windows (requires 9 previous windows)
+
+#### Windowing Behavior
+
+- Data is split into **non-overlapping windows** of size N samples
+- Each feature aggregates across all subcarriers (robust to single-subcarrier fluctuations)
+- For each sample: calculate mean amplitude across all 64 subcarriers
+- For each window: apply aggregation function (mean, std, max, min) to those per-sample means
+
+#### Edge Window Handling
+
+Features requiring N previous windows **cannot be calculated for the first N windows**. These windows are skipped in the output.
+
+For example, with `mean_last10` (requires 9 previous windows):
+- Input: 1500 samples → 15 windows (window size = 100)
+- Output: Only windows 9-14 (6 windows)
+- Windows 0-8 are skipped due to insufficient context
+
+#### Output Format
+
+The output CSV contains one row per window with the following structure:
+
+```csv
+window_id,start_seq,end_seq,mean_amp,std_amp,max_amp,min_amp,mean_last3,mean_last10
+9,900,999,45.2,3.1,52.3,38.1,45.0,44.8
+10,1000,1099,46.1,2.9,51.8,39.0,45.5,45.1
+```
+
+- `window_id`: Index of the window
+- `start_seq`: Sequence number of first sample in window
+- `end_seq`: Sequence number of last sample in window
+- Feature columns: One per registered feature
+
+#### Custom Features
+
+To add custom features, edit `src/csi_toolkit/processing/features/`:
+
+```python
+# In features/custom.py
+from .registry import registry
+from .utils import get_sample_mean_amplitudes
+
+@registry.register('my_feature', n_prev=5, description='My custom feature')
+def my_feature(current_samples, prev_samples, next_samples):
+    """Calculate a custom feature across 6 windows (current + 5 previous)."""
+    # Combine all samples
+    all_samples = []
+    for prev_window in prev_samples:
+        all_samples.extend(prev_window)
+    all_samples.extend(current_samples)
+
+    # Calculate per-sample means
+    sample_means = get_sample_mean_amplitudes(all_samples)
+
+    # Return your computed value
+    return float(np.mean(sample_means))
+```
+
+Then import your module in `features/__init__.py`:
+
+```python
+from . import custom  # Trigger registration
+```
+
 ## Data Format
 
 The CSI data follows this CSV schema:
@@ -136,7 +228,13 @@ The CSI data follows this CSV schema:
 ### Processing Module
 
 - **amplitude.py**: Amplitude calculations from Q,I values
-- **features.py**: Feature extraction utilities
+- **windowing.py**: Window creation and data structures (CSISample, WindowData)
+- **feature_extractor.py**: Feature extraction pipeline
+- **features/**: Modular feature system
+  - **registry.py**: Feature registration system
+  - **basic.py**: Basic window features (mean, std, max, min)
+  - **temporal.py**: Multi-window features (mean_last3, mean_last10)
+  - **utils.py**: Helper functions for feature calculation
 
 ### I/O Module
 
