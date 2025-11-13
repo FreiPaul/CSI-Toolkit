@@ -61,6 +61,9 @@ python -m csi_toolkit collect --port /dev/ttyUSB0 --baudrate 921600
 
 # Custom output directory and flush interval
 python -m csi_toolkit collect --output-dir mydata --flush 10
+
+# Collect with real-time inference (requires trained model)
+python -m csi_toolkit collect --live-inference --model-dir models/model_20250113_143022
 ```
 
 Configuration via `.env` file:
@@ -297,8 +300,11 @@ python -m csi_toolkit train features/labeled_features.csv
 # 4. Evaluate model performance
 python -m csi_toolkit evaluate --dataset features/labeled_features.csv --model-dir models/model_20250113_143022
 
-# 5. Run inference on new data
+# 5. Run inference on new data (offline)
 python -m csi_toolkit inference --dataset features/new_data.csv --model-dir models/model_20250113_143022
+
+# 6. OR use live inference during collection (real-time)
+python -m csi_toolkit collect --live-inference --model-dir models/model_20250113_143022
 ```
 
 ### Training
@@ -445,6 +451,94 @@ Metrics:
   accuracy: 0.9235
   f1_macro: 0.9180
   ...
+```
+
+### Live Inference During Collection
+
+CSI Toolkit supports real-time inference during data collection, allowing you to see predicted activities as data is collected. This is useful for:
+- Monitoring model performance in real-time
+- Live activity recognition applications
+- Debugging and validation during data collection
+
+**Basic Usage:**
+
+```bash
+# Collect data with live inference (labeled mode)
+python -m csi_toolkit collect --live-inference --model-dir models/model_20250113_143022
+
+# With custom window size (must match training window size)
+python -m csi_toolkit collect \
+  --live-inference \
+  --model-dir models/model_20250113_143022 \
+  --window-size 100
+```
+
+**What happens during live collection:**
+
+1. **Continuous Prediction**: Every time a complete window (100 packets by default) is collected, the model:
+   - Extracts features from the window
+   - Generates a prediction
+   - Displays the predicted label and confidence in the CLI
+
+2. **Real-time Display**: The CLI shows current prediction during collection:
+   ```
+   Packets: 1500, Errors: 0 | Prediction: 2 (0.87)
+   ```
+   - Updates every 100 packets
+   - Shows predicted class and confidence score
+
+3. **CSV Output**: The output CSV includes both columns:
+   - `label`: User-provided label (from keyboard input)
+   - `predicted_label`: Model's real-time prediction
+
+   Example CSV output:
+   ```csv
+   type,seq,mac,rssi,...,label,predicted_label
+   CSI_DATA,0,aa:bb:cc:dd:ee:ff,-45,...,1,Unknown
+   CSI_DATA,1,aa:bb:cc:dd:ee:ff,-45,...,1,Unknown
+   ...
+   CSI_DATA,99,aa:bb:cc:dd:ee:ff,-45,...,1,Unknown
+   CSI_DATA,100,aa:bb:cc:dd:ee:ff,-45,...,1,1
+   CSI_DATA,101,aa:bb:cc:dd:ee:ff,-45,...,1,1
+   ...
+   CSI_DATA,199,aa:bb:cc:dd:ee:ff,-45,...,1,1
+   CSI_DATA,200,aa:bb:cc:dd:ee:ff,-45,...,2,2
+   ```
+
+   - First 100 packets show "Unknown" (not enough data for prediction)
+   - Once a window completes, all packets in that window get the prediction
+   - Predictions update every window_size packets
+
+4. **Works in Both Modes**:
+   - **Labeled mode** (default): Shows both user labels and predictions - useful for validation
+   - **Unlabeled mode**: Shows only predictions - useful for live monitoring
+
+**Important Notes:**
+
+- The `--window-size` must match the window size used during feature extraction and training
+- Model must be trained on the same features that are available in raw CSI data
+- **Warmup period**: If your features use previous windows (like `mean_last10`), predictions will show "Waiting for history..." until enough windows are collected
+  - Example: `mean_last10` needs 9 previous windows, so predictions start at window 9
+- Live inference adds minimal overhead (~few milliseconds per window)
+- If feature extraction or prediction fails, "Unknown" is displayed
+
+**Example Workflow:**
+
+```bash
+# 1. Train a model on labeled data
+python -m csi_toolkit train features/labeled_features.csv
+
+# 2. Collect new data with live inference to validate model
+python -m csi_toolkit collect \
+  --live-inference \
+  --model-dir models/model_20250113_143022
+
+# (Press keys 0-9 to label activities)
+# (Watch predictions appear in real-time)
+# (Compare predicted_label with your label column)
+
+# 3. Later, compare predictions with labels
+# The CSV now has both label and predicted_label columns for analysis
 ```
 
 ### Model Directory Structure

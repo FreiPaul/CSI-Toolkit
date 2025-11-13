@@ -19,8 +19,33 @@ def collect_command(args):
         env_file=args.env,
     )
 
+    # Setup live inference if requested
+    live_inference_handler = None
+    if args.live_inference:
+        if not args.model_dir:
+            print("Error: --live-inference requires --model-dir to be specified", file=sys.stderr)
+            return 1
+
+        try:
+            from .ml.inference import LiveInferenceHandler
+            live_inference_handler = LiveInferenceHandler(
+                model_dir=args.model_dir,
+                window_size=args.window_size,
+                verbose=True,
+            )
+        except ImportError:
+            print("Error: ML functionality not installed. Install with: pip install -e '.[ml]'", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"Error loading model: {e}", file=sys.stderr)
+            return 1
+
     # Create and start collector
-    collector = SerialCollector(config, debug=args.debug)
+    collector = SerialCollector(
+        config,
+        debug=args.debug,
+        live_inference_handler=live_inference_handler,
+    )
     try:
         collector.start()
     except KeyboardInterrupt:
@@ -353,6 +378,22 @@ def main():
         '--debug',
         action='store_true',
         help='Enable debug output for troubleshooting',
+    )
+    collect_parser.add_argument(
+        '--live-inference',
+        action='store_true',
+        help='Enable live inference during collection (requires --model-dir)',
+    )
+    collect_parser.add_argument(
+        '--model-dir',
+        help='Path to trained model directory for live inference',
+        default=None,
+    )
+    collect_parser.add_argument(
+        '--window-size',
+        type=int,
+        help='Window size for live inference (default: 100)',
+        default=100,
     )
     collect_parser.set_defaults(func=collect_command)
 
