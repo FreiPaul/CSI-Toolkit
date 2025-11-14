@@ -103,7 +103,3 @@ The registry-based architecture allows extensions without modifying core code.
 Developed by Paul Herrmann for his Seminar Paper at RWTH Aachen University.
 
 For questions or issues, please contact: paul.herrmann@rwth-aachen.de
-
-## License
-
-See LICENSE file for details.
