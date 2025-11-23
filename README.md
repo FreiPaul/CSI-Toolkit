@@ -54,14 +54,14 @@ python -m csi_toolkit collect --live-inference --model-dir models/model_20250113
 
 ## CLI Commands
 
-| Command | Description |
-|---------|-------------|
-| `collect` | Collect CSI data from serial port with optional live inference |
-| `plot` | Real-time visualization with filtering options |
-| `process` | Extract features from raw CSI data |
-| `train` | Train machine learning models |
-| `inference` | Run batch predictions on feature data |
-| `evaluate` | Compute evaluation metrics on test data |
+| Command     | Description                                                    |
+| ----------- | -------------------------------------------------------------- |
+| `collect`   | Collect CSI data from serial port with optional live inference |
+| `plot`      | Real-time visualization with filtering options                 |
+| `process`   | Extract features from raw CSI data                             |
+| `train`     | Train machine learning models                                  |
+| `inference` | Run batch predictions on feature data                          |
+| `evaluate`  | Compute evaluation metrics on test data                        |
 
 ## Documentation
 
