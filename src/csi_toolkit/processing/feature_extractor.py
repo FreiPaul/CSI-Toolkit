@@ -83,8 +83,11 @@ class FeatureExtractor:
         discard_windows = set()
         if self.labeled_mode:
             transition_windows = self._find_transition_windows(windows)
-            discard_windows = self._expand_buffer(transition_windows, len(windows))
-            print(f"Found {len(transition_windows)} transition windows, discarding {len(discard_windows)} total (with buffer={self.transition_buffer})")
+            # After-buffer must be at least max_n_prev to prevent temporal features
+            # from using data from transition windows
+            after_buffer = max(self.transition_buffer, self.max_n_prev)
+            discard_windows = self._expand_buffer(transition_windows, len(windows), after_buffer)
+            print(f"Found {len(transition_windows)} transition windows, discarding {len(discard_windows)} total (buffer: {self.transition_buffer} before, {after_buffer} after)")
 
         print(f"Extracting features (requires {self.max_n_prev} prev, {self.max_n_next} next windows)...")
         results = []
@@ -149,24 +152,32 @@ class FeatureExtractor:
                 transition_windows.add(window.window_id)
         return transition_windows
 
-    def _expand_buffer(self, transition_windows: set, total_windows: int) -> set:
+    def _expand_buffer(self, transition_windows: set, total_windows: int, after_buffer: int) -> set:
         """
         Expand transition windows to include buffer zones.
 
-        Adds N windows before and after each transition window,
-        where N is self.transition_buffer.
+        Uses asymmetric buffering: transition_buffer windows before,
+        after_buffer windows after each transition. The after_buffer
+        should be at least max_n_prev to ensure temporal features
+        don't use data from discarded transition windows.
 
         Args:
             transition_windows: Set of window IDs with transitions
             total_windows: Total number of windows
+            after_buffer: Number of windows to discard after each transition
 
         Returns:
             Set of all window IDs to discard (transitions + buffers)
         """
         discard = set(transition_windows)
         for win_id in transition_windows:
-            # Add buffer windows before and after
-            for offset in range(-self.transition_buffer, self.transition_buffer + 1):
+            # Add buffer windows before (using transition_buffer)
+            for offset in range(-self.transition_buffer, 0):
+                buffered_id = win_id + offset
+                if 0 <= buffered_id < total_windows:
+                    discard.add(buffered_id)
+            # Add buffer windows after (using after_buffer)
+            for offset in range(1, after_buffer + 1):
                 buffered_id = win_id + offset
                 if 0 <= buffered_id < total_windows:
                     discard.add(buffered_id)
