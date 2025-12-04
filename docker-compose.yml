@@ -1,0 +1,39 @@
+services:
+  csi-toolkit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: csi-toolkit:latest
+    container_name: csi-toolkit
+    volumes:
+      # Mount local data directory
+      - ./data:/app/data:ro
+      # Mount models directory (read-write for training)
+      - ./models:/app/models
+      # Mount output directory for results
+      - ./output:/app/output
+      # Mount processed data
+      - ./processed:/app/processed
+    working_dir: /app
+    # Override entrypoint for interactive use
+    # stdin_open: true
+    # tty: true
+
+  # Interactive shell for development
+  csi-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: csi-toolkit:latest
+    container_name: csi-dev
+    volumes:
+      - ./data:/app/data:ro
+      - ./models:/app/models
+      - ./output:/app/output
+      - ./processed:/app/processed
+      # Mount source for live development
+      - ./src:/app/src
+    working_dir: /app
+    entrypoint: ["/bin/bash"]
+    stdin_open: true
+    tty: true
