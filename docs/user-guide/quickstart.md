@@ -2,10 +2,37 @@
 
 This guide will walk you through a complete workflow from data collection to model evaluation.
 
-## Prerequisites
+## Quick Start with Docker (No Installation Required)
+
+If you just want to explore CSI data processing using the included sample dataset (`data/csi-60k.csv`), Docker is the fastest way to get started:
+
+```bash
+# Clone and build
+git clone https://github.com/FreiPaul/CSI-Collector
+cd "CSI-Collector"
+docker build -t csi-toolkit:latest .
+
+# Process the sample dataset (60k CSI samples)
+docker compose run --rm csi-toolkit process data/csi-60k.csv output/features.csv --labeled
+
+# Train a model on the extracted features
+docker compose run --rm csi-toolkit train output/features.csv
+
+# Evaluate the trained model
+docker compose run --rm csi-toolkit evaluate --dataset output/features.csv --model-dir models/<your_model>
+
+# Interactive shell for exploration
+docker compose run --rm csi-dev
+```
+
+This gives you a fully working ML environment with TensorFlow, PyTorch, and scikit-learn without any local Python setup.
+
+---
+
+## Prerequisites (Native Installation)
 
 1. CSI Toolkit installed ([Installation Guide](installation.md))
-2. ESP32 device connected via USB
+2. ESP32 device connected via USB (for data collection)
 3. ML dependencies installed for training: `pip install -e ".[ml]"`
 
 ## Complete Workflow
