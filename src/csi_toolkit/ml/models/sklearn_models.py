@@ -6,7 +6,9 @@ import numpy as np
 
 try:
     from sklearn.neural_network import MLPClassifier as SklearnMLP
-    from sklearn.preprocessing import LabelEncoder
+    from sklearn.ensemble import RandomForestClassifier as SklearnRF
+    from sklearn.svm import SVC as SklearnSVC
+    from sklearn.preprocessing import LabelEncoder, StandardScaler
 except ImportError:
     raise ImportError(
         "scikit-learn is required for ML functionality. "
@@ -181,6 +183,245 @@ class MLPModel(BaseModel):
 
         self.model = model_data['model']
         self.label_encoder = model_data['label_encoder']
+        self.hyperparameters = model_data['hyperparameters']
+        self.n_features_ = model_data['n_features_']
+        self.n_classes_ = model_data['n_classes_']
+        self.classes_ = model_data['classes_']
+        self.is_fitted = model_data['is_fitted']
+
+
+@registry.register(
+    'random_forest',
+    description='Random Forest ensemble classifier',
+    default_params={
+        'n_estimators': 100,
+        'max_depth': None,
+        'min_samples_split': 2,
+        'min_samples_leaf': 1,
+        'max_features': 'sqrt',
+        'random_state': 42,
+        'n_jobs': -1,
+        'verbose': 0
+    }
+)
+class RandomForestModel(BaseModel):
+    """
+    Random Forest classifier using scikit-learn.
+
+    An ensemble of decision trees that provides robust classification
+    with built-in feature importance. Well-suited for tabular feature data
+    like the statistical features extracted from CSI signals.
+
+    Advantages:
+    - No feature scaling required
+    - Handles non-linear relationships
+    - Provides feature importance ranking
+    - Robust to outliers
+    """
+
+    def __init__(self, **kwargs):
+        """
+        Initialize Random Forest model.
+
+        Args:
+            n_estimators: Number of trees in the forest
+            max_depth: Maximum depth of trees (None = expand until pure)
+            min_samples_split: Minimum samples to split a node
+            min_samples_leaf: Minimum samples in a leaf node
+            max_features: Features to consider for best split ('sqrt', 'log2', int, float)
+            random_state: Random seed for reproducibility
+            n_jobs: Number of parallel jobs (-1 = use all processors)
+            **kwargs: Additional scikit-learn RandomForestClassifier parameters
+        """
+        super().__init__(**kwargs)
+        self.model = SklearnRF(**kwargs)
+        self.label_encoder = LabelEncoder()
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -> 'RandomForestModel':
+        """Train the Random Forest model."""
+        y_encoded = self.label_encoder.fit_transform(y)
+        self.model.fit(X, y_encoded)
+
+        self.n_features_ = X.shape[1]
+        self.classes_ = self.label_encoder.classes_
+        self.n_classes_ = len(self.classes_)
+        self.is_fitted = True
+
+        return self
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Generate predictions."""
+        self._validate_fitted()
+        self._validate_features(X)
+
+        y_pred_encoded = self.model.predict(X)
+        return self.label_encoder.inverse_transform(y_pred_encoded)
+
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        """Generate class probability estimates."""
+        self._validate_fitted()
+        self._validate_features(X)
+
+        return self.model.predict_proba(X)
+
+    def get_model_specific_params(self) -> Dict[str, Any]:
+        """Get Random Forest-specific parameters."""
+        if not self.is_fitted:
+            return {}
+
+        return {
+            'n_estimators': self.model.n_estimators,
+            'max_depth': self.model.max_depth,
+            'feature_importances': self.model.feature_importances_.tolist(),
+        }
+
+    def save(self, path: str) -> None:
+        """Save the model to disk."""
+        if not self.is_fitted:
+            raise ValueError("Cannot save unfitted model. Call .fit() first.")
+
+        model_data = {
+            'model': self.model,
+            'label_encoder': self.label_encoder,
+            'hyperparameters': self.hyperparameters,
+            'n_features_': self.n_features_,
+            'n_classes_': self.n_classes_,
+            'classes_': self.classes_,
+            'is_fitted': self.is_fitted,
+        }
+
+        with open(path, 'wb') as f:
+            pickle.dump(model_data, f)
+
+    def load(self, path: str) -> None:
+        """Load the model from disk."""
+        with open(path, 'rb') as f:
+            model_data = pickle.load(f)
+
+        self.model = model_data['model']
+        self.label_encoder = model_data['label_encoder']
+        self.hyperparameters = model_data['hyperparameters']
+        self.n_features_ = model_data['n_features_']
+        self.n_classes_ = model_data['n_classes_']
+        self.classes_ = model_data['classes_']
+        self.is_fitted = model_data['is_fitted']
+
+
+@registry.register(
+    'svm',
+    description='Support Vector Machine classifier',
+    default_params={
+        'C': 1.0,
+        'kernel': 'rbf',
+        'gamma': 'scale',
+        'probability': True,
+        'random_state': 42,
+        'verbose': False
+    }
+)
+class SVMModel(BaseModel):
+    """
+    Support Vector Machine classifier using scikit-learn.
+
+    Finds optimal hyperplanes to separate classes. Effective for
+    smaller datasets and high-dimensional feature spaces.
+
+    Advantages:
+    - Effective with limited training data
+    - Works well in high-dimensional spaces
+    - Memory efficient (uses support vectors only)
+
+    Note: Features are automatically scaled (SVM is sensitive to feature scales).
+    """
+
+    def __init__(self, **kwargs):
+        """
+        Initialize SVM model.
+
+        Args:
+            C: Regularization parameter (lower = more regularization)
+            kernel: Kernel type ('rbf', 'linear', 'poly', 'sigmoid')
+            gamma: Kernel coefficient ('scale', 'auto', or float)
+            probability: Enable probability estimates (slower but useful)
+            random_state: Random seed for reproducibility
+            **kwargs: Additional scikit-learn SVC parameters
+        """
+        super().__init__(**kwargs)
+        self.model = SklearnSVC(**kwargs)
+        self.label_encoder = LabelEncoder()
+        self.scaler = StandardScaler()
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -> 'SVMModel':
+        """Train the SVM model (with automatic feature scaling)."""
+        y_encoded = self.label_encoder.fit_transform(y)
+
+        # Scale features (important for SVM)
+        X_scaled = self.scaler.fit_transform(X)
+        self.model.fit(X_scaled, y_encoded)
+
+        self.n_features_ = X.shape[1]
+        self.classes_ = self.label_encoder.classes_
+        self.n_classes_ = len(self.classes_)
+        self.is_fitted = True
+
+        return self
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Generate predictions."""
+        self._validate_fitted()
+        self._validate_features(X)
+
+        X_scaled = self.scaler.transform(X)
+        y_pred_encoded = self.model.predict(X_scaled)
+        return self.label_encoder.inverse_transform(y_pred_encoded)
+
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        """Generate class probability estimates."""
+        self._validate_fitted()
+        self._validate_features(X)
+
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict_proba(X_scaled)
+
+    def get_model_specific_params(self) -> Dict[str, Any]:
+        """Get SVM-specific parameters."""
+        if not self.is_fitted:
+            return {}
+
+        return {
+            'C': self.model.C,
+            'kernel': self.model.kernel,
+            'gamma': self.model.gamma,
+            'n_support_vectors': int(np.sum(self.model.n_support_)),
+        }
+
+    def save(self, path: str) -> None:
+        """Save the model to disk."""
+        if not self.is_fitted:
+            raise ValueError("Cannot save unfitted model. Call .fit() first.")
+
+        model_data = {
+            'model': self.model,
+            'label_encoder': self.label_encoder,
+            'scaler': self.scaler,
+            'hyperparameters': self.hyperparameters,
+            'n_features_': self.n_features_,
+            'n_classes_': self.n_classes_,
+            'classes_': self.classes_,
+            'is_fitted': self.is_fitted,
+        }
+
+        with open(path, 'wb') as f:
+            pickle.dump(model_data, f)
+
+    def load(self, path: str) -> None:
+        """Load the model from disk."""
+        with open(path, 'rb') as f:
+            model_data = pickle.load(f)
+
+        self.model = model_data['model']
+        self.label_encoder = model_data['label_encoder']
+        self.scaler = model_data['scaler']
         self.hyperparameters = model_data['hyperparameters']
         self.n_features_ = model_data['n_features_']
         self.n_classes_ = model_data['n_classes_']
