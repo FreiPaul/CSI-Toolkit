@@ -90,6 +90,7 @@ python -m csi_toolkit collect --live-inference --model-dir models/model_20250113
 | ----------- | -------------------------------------------------------------- |
 | `collect`   | Collect CSI data from serial port with optional live inference |
 | `plot`      | Real-time visualization with filtering options                 |
+| `plot-data` | Generate static plots from processed feature data              |
 | `process`   | Extract features from raw CSI data                             |
 | `train`     | Train machine learning models                                  |
 | `inference` | Run batch predictions on feature data                          |

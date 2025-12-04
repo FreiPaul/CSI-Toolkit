@@ -1,6 +1,8 @@
 # Visualization Guide
 
-Real-time CSI data visualization with filtering options.
+CSI Toolkit provides two visualization modes:
+- **Real-time plotting** (`plot`): Live visualization of raw CSI data as it's collected
+- **Static plot generation** (`plot-data`): Generate publication-ready plots from processed feature data
 
 ## Basic Visualization
 
@@ -179,6 +181,75 @@ python -m csi_toolkit plot data/current.csv --subcarrier 0
 # Terminal 2
 python -m csi_toolkit plot data/current.csv --subcarrier 32
 ```
+
+---
+
+## Static Plot Generation
+
+The `plot-data` command generates static plots from processed feature CSV files. Unlike the real-time `plot` command, this creates publication-ready PNG images.
+
+### Basic Usage
+
+```bash
+# Generate all applicable plots
+python -m csi_toolkit plot-data output/features.csv
+
+# Display plots interactively (in addition to saving)
+python -m csi_toolkit plot-data output/features.csv --display
+
+# Generate specific plots only
+python -m csi_toolkit plot-data output/features.csv -p class_distribution
+
+# List available plot types
+python -m csi_toolkit plot-data --list-plots
+```
+
+### Available Plots
+
+| Plot | Description | Condition |
+|------|-------------|-----------|
+| `class_distribution` | Pie chart of class label distribution | Requires `label` column |
+| `amplitude_over_windows` | Line plot of mean_amp and std_amp over window_id | Requires `mean_amp` and `std_amp` columns |
+
+### Output
+
+Plots are saved to the same directory as the input CSV file:
+- `features_class_distribution.png`
+- `features_amplitude_windows.png`
+
+### Plot Features
+
+**Class Distribution Pie Chart:**
+- Shows percentage breakdown of each class
+- Legend with window counts per class
+- Automatically sorted by class label
+
+**Amplitude Over Windows:**
+- Two-panel plot: mean amplitude (top) and standard deviation (bottom)
+- Background shading indicates class regions (if labeled data)
+- Y-axis limited to 1st-95th percentile to handle outliers
+- Black line for visibility against colored backgrounds
+
+### Adding Custom Plots
+
+The plot system uses a registry pattern. To add a custom plot, create a function in `src/csi_toolkit/visualization/plots/feature_plots.py`:
+
+```python
+from .registry import registry
+
+@registry.register(
+    name="my_custom_plot",
+    condition=lambda df: "my_column" in df.columns,
+    description="Description of my plot",
+    output_suffix="_my_plot.png",
+)
+def plot_my_custom(df: pd.DataFrame) -> plt.Figure:
+    fig, ax = plt.subplots()
+    # ... create your plot ...
+    return fig
+```
+
+The `condition` function determines when the plot is applicable based on the DataFrame columns.
 
 ## Next Steps
 
