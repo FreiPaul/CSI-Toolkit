@@ -1,6 +1,7 @@
 """Feature-based plot implementations."""
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from .registry import registry
@@ -64,11 +65,18 @@ def plot_amplitude_over_windows(df: pd.DataFrame) -> plt.Figure:
         x = df.index
         x_label = "Window Index"
 
+    # Calculate y-axis limits using 95th percentile
+    mean_amp_p95 = np.percentile(df["mean_amp"], 95)
+    std_amp_p95 = np.percentile(df["std_amp"], 95)
+    mean_amp_p1 = np.percentile(df["mean_amp"], 1)
+    std_amp_p1 = np.percentile(df["std_amp"], 1)
+
     # Plot mean amplitude
     ax1.plot(x, df["mean_amp"], "b-", linewidth=0.8, alpha=0.8)
     ax1.set_ylabel("Mean Amplitude", fontsize=10)
     ax1.set_title("Mean Amplitude Over Windows", fontsize=12, fontweight="bold")
     ax1.grid(True, alpha=0.3)
+    ax1.set_ylim(top=mean_amp_p95 * 1.05, bottom=mean_amp_p1 * 0.95)  # 5% padding above 95th percentile and below 1st percentile
 
     # Add label coloring if available
     if "label" in df.columns:
@@ -92,6 +100,7 @@ def plot_amplitude_over_windows(df: pd.DataFrame) -> plt.Figure:
     ax2.set_ylabel("Std Amplitude", fontsize=10)
     ax2.set_title("Standard Deviation of Amplitude Over Windows", fontsize=12, fontweight="bold")
     ax2.grid(True, alpha=0.3)
+    ax2.set_ylim(top=std_amp_p95 * 1.05, bottom=std_amp_p1 * 0.95)  # 5% padding above 95th percentile and below 1st percentile
 
     # Add label coloring if available
     if "label" in df.columns:
