@@ -116,6 +116,59 @@ python -m csi_toolkit plot data/current.csv --fs 100 --fc 2.0 --order 4
 python -m csi_toolkit plot user@host:/path/to/file.csv
 ```
 
+## plot-data
+
+Generate static plots from processed feature data.
+
+### Synopsis
+
+```bash
+python -m csi_toolkit plot-data FILE [OPTIONS]
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `FILE` | Feature CSV file path (from `process` command) |
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--display` | flag | False | Display plots interactively after saving |
+| `-p, --plots` | string | All applicable | Comma-separated list of plots to generate |
+| `--list-plots` | flag | False | List available plot types and exit |
+
+### Examples
+
+```bash
+# Generate all applicable plots
+python -m csi_toolkit plot-data output/features.csv
+
+# Display plots interactively
+python -m csi_toolkit plot-data output/features.csv --display
+
+# Generate specific plots
+python -m csi_toolkit plot-data output/features.csv -p class_distribution,amplitude_over_windows
+
+# List available plots
+python -m csi_toolkit plot-data --list-plots
+```
+
+### Available Plots
+
+| Plot | Description | Required Columns |
+|------|-------------|------------------|
+| `class_distribution` | Pie chart of class labels | `label` |
+| `amplitude_over_windows` | Mean/std amplitude over windows | `mean_amp`, `std_amp` |
+
+### Output
+
+Plots are saved as PNG files in the same directory as the input CSV:
+- `{filename}_class_distribution.png`
+- `{filename}_amplitude_windows.png`
+
 ## process
 
 Extract features from raw CSI data.
