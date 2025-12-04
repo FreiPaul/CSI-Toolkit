@@ -30,6 +30,38 @@ pip install -e .            # Core functionality
 pip install -e ".[ml]"      # ML functionality
 ```
 
+### Docker Installation
+
+For a reproducible environment with all ML dependencies (TensorFlow, PyTorch, scikit-learn):
+
+```bash
+# Build the image
+docker build -t csi-toolkit:latest .
+
+# Or use docker-compose
+docker compose build
+```
+
+Run commands with Docker:
+
+```bash
+# Using docker run (mount data and output directories)
+docker run --rm \
+  -v $(pwd)/data:/app/data:ro \
+  -v $(pwd)/output:/app/output \
+  csi-toolkit:latest process data/csi-60k.csv output/output.csv
+
+# Using docker-compose (recommended - volumes pre-configured)
+docker compose run --rm csi-toolkit process data/csi-60k.csv output/output.csv
+docker compose run --rm csi-toolkit train data/features.csv
+docker compose run --rm csi-toolkit evaluate --dataset data/features.csv --model-dir models/my_model
+
+# Interactive shell for development
+docker compose run --rm csi-dev
+```
+
+> **Note**: Data collection (`collect`) requires serial port access and is best run natively, not in Docker.
+
 ### Basic Workflow
 
 ```bash

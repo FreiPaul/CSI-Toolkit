@@ -2,9 +2,39 @@
 
 This guide covers detailed installation instructions for CSI Toolkit.
 
-## Requirements
+## Quick Start with Docker (Recommended for Data Processing)
 
-- Python 3.8 or higher
+If you only want to process CSI data (e.g., using the sample dataset `data/csi-60k.csv`), Docker is the easiest way to get started. No Python version conflicts, no dependency issues.
+
+```bash
+# Clone the repository
+git clone https://github.com/FreiPaul/CSI-Collector
+cd "CSI-Collector"
+
+# Build the Docker image
+docker build -t csi-toolkit:latest .
+
+# Process the sample dataset
+docker compose run --rm csi-toolkit process data/csi-60k.csv output/features.csv --labeled
+
+# Train a model
+docker compose run --rm csi-toolkit train output/features.csv
+
+# Evaluate
+docker compose run --rm csi-toolkit evaluate --dataset output/features.csv --model-dir models/<model_name>
+```
+
+The Docker image includes all ML dependencies (TensorFlow, PyTorch, scikit-learn) pre-installed with Python 3.11.
+
+> **Note**: For real-time data collection from an ESP32 device, use the native installation below (Docker cannot access serial ports easily).
+
+---
+
+## Native Installation
+
+### Requirements
+
+- Python 3.8 - 3.12 (Python 3.13+ not yet supported by TensorFlow/PyTorch)
 - pip package manager
 - Virtual environment (recommended)
 
