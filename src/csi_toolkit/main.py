@@ -305,6 +305,48 @@ def evaluate_command(args):
     return 0
 
 
+def plot_data_command(args):
+    """Handle the plot-data subcommand."""
+    from .visualization import DataPlotter, plot_registry
+
+    # Handle --list-plots first
+    if args.list_plots:
+        print(plot_registry.list_plots())
+        return 0
+
+    # Validate input is provided
+    if not args.input:
+        print("Error: input file is required", file=sys.stderr)
+        print("Use --list-plots to see available plot types", file=sys.stderr)
+        return 1
+
+    # Parse plot names if provided
+    plot_names = None
+    if args.plots:
+        plot_names = [p.strip() for p in args.plots.split(',')]
+
+    # Create plotter and generate plots
+    try:
+        plotter = DataPlotter(args.input, display=args.display)
+        output_paths = plotter.generate_plots(plot_names=plot_names)
+
+        if output_paths:
+            print(f"\n✓ Generated {len(output_paths)} plot(s)")
+        else:
+            return 1
+
+    except FileNotFoundError:
+        print(f"Error: File not found: {args.input}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 1
+
+    return 0
+
+
 def info_command(args):
     """Handle the info subcommand."""
     print("CSI Toolkit - Channel State Information Processing Pipeline")
@@ -456,6 +498,34 @@ def main():
         help='Butterworth filter order (default: 4)',
     )
     plot_parser.set_defaults(func=plot_command)
+
+    # Plot-data command
+    plot_data_parser = subparsers.add_parser(
+        'plot-data',
+        help='Generate static plots from processed feature data',
+        description='Generate various plots from feature CSV files',
+    )
+    plot_data_parser.add_argument(
+        'input',
+        nargs='?',  # Make optional for --list-plots
+        help='Input feature CSV file',
+    )
+    plot_data_parser.add_argument(
+        '--display',
+        action='store_true',
+        help='Display plots interactively (in addition to saving)',
+    )
+    plot_data_parser.add_argument(
+        '-p', '--plots',
+        help='Comma-separated list of plots to generate (default: all applicable)',
+        default=None,
+    )
+    plot_data_parser.add_argument(
+        '--list-plots',
+        action='store_true',
+        help='List available plot types and exit',
+    )
+    plot_data_parser.set_defaults(func=plot_data_command)
 
     # Process command
     process_parser = subparsers.add_parser(
