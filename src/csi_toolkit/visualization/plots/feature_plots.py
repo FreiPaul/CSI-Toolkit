@@ -130,3 +130,120 @@ def plot_amplitude_over_windows(df: pd.DataFrame) -> plt.Figure:
 
     plt.tight_layout()
     return fig
+
+
+def _plot_single_feature(
+    df: pd.DataFrame,
+    feature: str,
+    title: str,
+    ylabel: str,
+) -> plt.Figure:
+    """Helper to plot a single feature over windows with class background coloring."""
+    fig, ax = plt.subplots(figsize=(12, 5))
+
+    # Use window_id if available, otherwise use index
+    if "window_id" in df.columns:
+        x = df["window_id"]
+        x_label = "Window ID"
+    else:
+        x = df.index
+        x_label = "Window Index"
+
+    # Calculate y-axis limits using 1st and 95th percentile
+    p95 = np.percentile(df[feature], 95)
+    p1 = np.percentile(df[feature], 1)
+
+    # Add background coloring by class label if available
+    if "label" in df.columns:
+        labels = sorted(df["label"].unique())
+        colors = plt.cm.Set1.colors
+        color_map = {label: colors[i % len(colors)] for i, label in enumerate(labels)}
+
+        x_values = x.values if hasattr(x, 'values') else x
+        label_values = df["label"].values
+
+        i = 0
+        legend_handles = {}
+        while i < len(label_values):
+            current_label = label_values[i]
+            start_x = x_values[i]
+            j = i
+            while j < len(label_values) and label_values[j] == current_label:
+                j += 1
+            end_x = x_values[j - 1]
+
+            x_padding = (x_values[1] - x_values[0]) / 2 if len(x_values) > 1 else 0.5
+
+            span = ax.axvspan(
+                start_x - x_padding,
+                end_x + x_padding,
+                alpha=0.2,
+                color=color_map[current_label],
+                label=f"Class {current_label}" if current_label not in legend_handles else None,
+            )
+            if current_label not in legend_handles:
+                legend_handles[current_label] = span
+
+            i = j
+
+    # Plot the feature
+    ax.plot(x, df[feature], "k-", linewidth=0.8, alpha=0.9)
+    ax.set_xlabel(x_label, fontsize=10)
+    ax.set_ylabel(ylabel, fontsize=10)
+    ax.set_title(title, fontsize=12, fontweight="bold")
+    ax.grid(True, alpha=0.3)
+    ax.set_ylim(top=p95 * 1.05, bottom=p1 * 0.95 if p1 > 0 else p1 * 1.05)
+
+    if "label" in df.columns:
+        ax.legend(loc="upper right", fontsize=8)
+
+    plt.tight_layout()
+    return fig
+
+
+@registry.register(
+    name="iqr_amp_over_windows",
+    condition=lambda df: "iqr_amp" in df.columns,
+    description="Line plot of interquartile range (IQR) amplitude over windows",
+    output_suffix="_iqr_amp_windows.png",
+)
+def plot_iqr_amp_over_windows(df: pd.DataFrame) -> plt.Figure:
+    """Generate a line plot of IQR amplitude over window IDs."""
+    return _plot_single_feature(
+        df,
+        feature="iqr_amp",
+        title="Interquartile Range (IQR) of Amplitude Over Windows",
+        ylabel="IQR Amplitude",
+    )
+
+
+@registry.register(
+    name="spectral_centroid_over_windows",
+    condition=lambda df: "spectral_centroid" in df.columns,
+    description="Line plot of spectral centroid over windows",
+    output_suffix="_spectral_centroid_windows.png",
+)
+def plot_spectral_centroid_over_windows(df: pd.DataFrame) -> plt.Figure:
+    """Generate a line plot of spectral centroid over window IDs."""
+    return _plot_single_feature(
+        df,
+        feature="spectral_centroid",
+        title="Spectral Centroid Over Windows",
+        ylabel="Spectral Centroid (normalized freq)",
+    )
+
+
+@registry.register(
+    name="mean_last3_over_windows",
+    condition=lambda df: "mean_last3" in df.columns,
+    description="Line plot of mean amplitude across last 3 windows",
+    output_suffix="_mean_last3_windows.png",
+)
+def plot_mean_last3_over_windows(df: pd.DataFrame) -> plt.Figure:
+    """Generate a line plot of mean_last3 (smoothed amplitude) over window IDs."""
+    return _plot_single_feature(
+        df,
+        feature="mean_last3",
+        title="Smoothed Mean Amplitude (Last 3 Windows) Over Time",
+        ylabel="Mean Amplitude (3-window avg)",
+    )
