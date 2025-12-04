@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# Always run the module with the project-local venv
+# and ensure that "src" is on the module path.
+PYTHONPATH="src" \
+    "$(dirname "$0")/.venv/bin/python" \
+    -m csi_toolkit "$@"
