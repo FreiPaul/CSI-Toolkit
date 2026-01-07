@@ -77,6 +77,27 @@ Output:    windows 0, 1, 5, 9 (with labels 1, 1, 2, 3)
 
 This ensures clean, homogeneous windows for training.
 
+### Label 0 (Unlabeled/Transition Class)
+
+Label 0 is a special "unlabeled" or "transition" class used during data collection to mark baseline periods or transitions between activities. **All windows with label 0 are automatically discarded during feature extraction.**
+
+```
+During collection:
+  Press 0 → baseline/transition periods (not a real activity)
+  Press 1-9 → actual activity classes
+
+After feature extraction:
+  Label 0 windows → discarded
+  Label 1-9 windows → kept (if no transitions)
+```
+
+Use label 0 freely during collection:
+- At the start before beginning activities
+- During transitions between different activities
+- Any time the subject is not performing a defined activity
+
+The toolkit handles the discard automatically, so only valid activity classes (1-9) appear in the output.
+
 ### Transition Buffer
 
 Adjust the buffer size:

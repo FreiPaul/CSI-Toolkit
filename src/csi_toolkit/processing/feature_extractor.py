@@ -79,7 +79,7 @@ class FeatureExtractor:
                 f"requested features, but only have {len(windows)}"
             )
 
-        # Find windows to discard due to label transitions (if in labeled mode)
+        # Find windows to discard due to label transitions or label 0 (if in labeled mode)
         discard_windows = set()
         if self.labeled_mode:
             transition_windows = self._find_transition_windows(windows)
@@ -88,6 +88,12 @@ class FeatureExtractor:
             after_buffer = max(self.transition_buffer, self.max_n_prev)
             discard_windows = self._expand_buffer(transition_windows, len(windows), after_buffer)
             print(f"Found {len(transition_windows)} transition windows, discarding {len(discard_windows)} total (buffer: {self.transition_buffer} before, {after_buffer} after)")
+
+            # Also discard windows with label 0 (unlabeled/transition class)
+            label_zero_windows = self._find_label_zero_windows(windows)
+            if label_zero_windows:
+                discard_windows.update(label_zero_windows)
+                print(f"Discarding {len(label_zero_windows)} additional windows with label 0")
 
         print(f"Extracting features (requires {self.max_n_prev} prev, {self.max_n_next} next windows)...")
         results = []
@@ -151,6 +157,30 @@ class FeatureExtractor:
             if len(set(labels)) > 1:
                 transition_windows.add(window.window_id)
         return transition_windows
+
+    def _find_label_zero_windows(self, windows: List[WindowData]) -> set:
+        """
+        Find windows where all samples have label 0.
+
+        Label 0 is a special "unlabeled" or "transition" class used during
+        data collection to mark periods between activity classes. These
+        windows should be discarded as they don't represent valid activities.
+
+        Args:
+            windows: List of all windows
+
+        Returns:
+            Set of window IDs that have label 0
+        """
+        label_zero_windows = set()
+        for window in windows:
+            if window.samples and window.samples[0].label == 0:
+                # Check that all samples have label 0 (should be the case
+                # since transition windows are handled separately)
+                labels = set(sample.label for sample in window.samples)
+                if labels == {0}:
+                    label_zero_windows.add(window.window_id)
+        return label_zero_windows
 
     def _expand_buffer(self, transition_windows: set, total_windows: int, after_buffer: int) -> set:
         """
