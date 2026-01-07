@@ -85,7 +85,8 @@ class FeatureExtractor:
         self,
         input_csv: str,
         output_csv: str,
-        window_size: int
+        window_size: int,
+        split: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Process CSV file and extract features.
@@ -94,21 +95,81 @@ class FeatureExtractor:
             input_csv: Path to input CSV file
             output_csv: Path to output features CSV file
             window_size: Number of samples per window
+            split: Optional train/test split percentage (1-99). When provided,
+                   creates <output>-train.csv and <output>-test.csv with stratified
+                   split by label. Requires labeled_mode=True.
 
         Returns:
             List of feature dictionaries (one per window)
 
         Raises:
             FileNotFoundError: If input file doesn't exist
-            ValueError: If insufficient data or invalid parameters
+            ValueError: If insufficient data, invalid parameters, or split without labels
         """
+        if split is not None:
+            if not self.labeled_mode:
+                raise ValueError("--split requires labeled mode (need labels for stratified split)")
+            if not 1 <= split <= 99:
+                raise ValueError("--split must be between 1 and 99")
+
         results = self.extract_features(input_csv, window_size)
 
-        print(f"Writing features to {output_csv}...")
-        self._write_csv(output_csv, results)
-        print(f"Done! Wrote {len(results)} rows")
+        if split is not None:
+            train_results, test_results = stratified_split(results, split / 100.0)
+
+            # Generate output filenames with -train and -test suffixes
+            output_path = Path(output_csv)
+            stem = output_path.stem
+            suffix = output_path.suffix or '.csv'
+            parent = output_path.parent
+
+            train_path = parent / f"{stem}-train{suffix}"
+            test_path = parent / f"{stem}-test{suffix}"
+
+            print(f"Writing train features to {train_path}...")
+            self._write_csv(str(train_path), train_results)
+            print(f"Done! Wrote {len(train_results)} rows to train set")
+
+            print(f"Writing test features to {test_path}...")
+            self._write_csv(str(test_path), test_results)
+            print(f"Done! Wrote {len(test_results)} rows to test set")
+
+            self._print_split_summary(results, train_results, test_results)
+        else:
+            print(f"Writing features to {output_csv}...")
+            self._write_csv(output_csv, results)
+            print(f"Done! Wrote {len(results)} rows")
 
         return results
+
+    def _print_split_summary(
+        self,
+        all_results: List[Dict[str, Any]],
+        train_results: List[Dict[str, Any]],
+        test_results: List[Dict[str, Any]]
+    ):
+        """Print a summary of the stratified split per label."""
+        from collections import Counter
+
+        all_labels = Counter(r.get('label') for r in all_results)
+        train_labels = Counter(r.get('label') for r in train_results)
+        test_labels = Counter(r.get('label') for r in test_results)
+
+        print("\nSplit summary per label:")
+        print(f"  {'Label':<10} {'Total':>8} {'Train':>8} {'Test':>8} {'Train%':>8}")
+        print(f"  {'-'*10} {'-'*8} {'-'*8} {'-'*8} {'-'*8}")
+        for label in sorted(all_labels.keys()):
+            total = all_labels[label]
+            train = train_labels.get(label, 0)
+            test = test_labels.get(label, 0)
+            pct = (train / total * 100) if total > 0 else 0
+            print(f"  {label:<10} {total:>8} {train:>8} {test:>8} {pct:>7.1f}%")
+        print(f"  {'-'*10} {'-'*8} {'-'*8} {'-'*8} {'-'*8}")
+        total_all = len(all_results)
+        total_train = len(train_results)
+        total_test = len(test_results)
+        total_pct = (total_train / total_all * 100) if total_all > 0 else 0
+        print(f"  {'Total':<10} {total_all:>8} {total_train:>8} {total_test:>8} {total_pct:>7.1f}%")
 
     def extract_features(
         self,
