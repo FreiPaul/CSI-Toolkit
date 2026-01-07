@@ -103,6 +103,7 @@ def plot_command(args):
 def process_command(args):
     """Handle the process subcommand."""
     from .processing import FeatureExtractor
+    from .processing.feature_extractor import stratified_split
     from .processing.features import registry
 
     # Handle --list-features first (doesn't need input/output files)
@@ -125,6 +126,15 @@ def process_command(args):
         print("Use --list-features to see available features", file=sys.stderr)
         return 1
 
+    # Validate split option
+    if args.split is not None:
+        if not args.labeled:
+            print("Error: --split requires --labeled mode (need labels for stratified split)", file=sys.stderr)
+            return 1
+        if not 1 <= args.split <= 99:
+            print("Error: --split must be between 1 and 99", file=sys.stderr)
+            return 1
+
     # Parse feature names if provided
     feature_names = None
     if args.features:
@@ -144,11 +154,42 @@ def process_command(args):
 
     # Process file
     try:
-        extractor.process_file(
-            input_csv=args.input,
-            output_csv=args.output,
-            window_size=args.window_size,
-        )
+        if args.split is not None:
+            # Extract features without writing (we'll split and write separately)
+            results = extractor.extract_features(
+                input_csv=args.input,
+                window_size=args.window_size,
+            )
+
+            # Perform stratified split by label
+            train_results, test_results = stratified_split(results, args.split / 100.0)
+
+            # Generate output filenames with -train and -test suffixes
+            output_path = Path(args.output)
+            stem = output_path.stem
+            suffix = output_path.suffix or '.csv'
+            parent = output_path.parent
+
+            train_path = parent / f"{stem}-train{suffix}"
+            test_path = parent / f"{stem}-test{suffix}"
+
+            # Write both files
+            print(f"Writing train features to {train_path}...")
+            extractor.write_results(str(train_path), train_results)
+            print(f"Done! Wrote {len(train_results)} rows to train set")
+
+            print(f"Writing test features to {test_path}...")
+            extractor.write_results(str(test_path), test_results)
+            print(f"Done! Wrote {len(test_results)} rows to test set")
+
+            # Print split summary per label
+            _print_split_summary(results, train_results, test_results)
+        else:
+            extractor.process_file(
+                input_csv=args.input,
+                output_csv=args.output,
+                window_size=args.window_size,
+            )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         import traceback
@@ -156,6 +197,31 @@ def process_command(args):
         return 1
 
     return 0
+
+
+def _print_split_summary(all_results, train_results, test_results):
+    """Print a summary of the stratified split per label."""
+    from collections import Counter
+
+    all_labels = Counter(r.get('label') for r in all_results)
+    train_labels = Counter(r.get('label') for r in train_results)
+    test_labels = Counter(r.get('label') for r in test_results)
+
+    print("\nSplit summary per label:")
+    print(f"  {'Label':<10} {'Total':>8} {'Train':>8} {'Test':>8} {'Train%':>8}")
+    print(f"  {'-'*10} {'-'*8} {'-'*8} {'-'*8} {'-'*8}")
+    for label in sorted(all_labels.keys()):
+        total = all_labels[label]
+        train = train_labels.get(label, 0)
+        test = test_labels.get(label, 0)
+        pct = (train / total * 100) if total > 0 else 0
+        print(f"  {label:<10} {total:>8} {train:>8} {test:>8} {pct:>7.1f}%")
+    print(f"  {'-'*10} {'-'*8} {'-'*8} {'-'*8} {'-'*8}")
+    total_all = len(all_results)
+    total_train = len(train_results)
+    total_test = len(test_results)
+    total_pct = (total_train / total_all * 100) if total_all > 0 else 0
+    print(f"  {'Total':<10} {total_all:>8} {total_train:>8} {total_test:>8} {total_pct:>7.1f}%")
 
 
 def train_command(args):
@@ -569,6 +635,13 @@ def main():
         type=int,
         default=1,
         help='Number of windows to discard before/after label transitions (default: 1)',
+    )
+    process_parser.add_argument(
+        '--split',
+        type=int,
+        metavar='PERCENT',
+        help='Split output by train/test percentage (e.g., --split 70 creates 70%% train, 30%% test). '
+             'Split is stratified per label. Outputs: <output>-train.csv and <output>-test.csv',
     )
     process_parser.set_defaults(func=process_command)
 

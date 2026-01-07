@@ -194,6 +194,7 @@ python -m csi_toolkit process INPUT OUTPUT [OPTIONS]
 | `--features` | string | All | Comma-separated feature names |
 | `--labeled` | flag | False | Process labeled data |
 | `--transition-buffer` | int | 1 | Windows to discard around transitions |
+| `--split` | int | None | Train/test split percentage (e.g., 70 for 70% train, 30% test). Stratified by label. Outputs `<output>-train.csv` and `<output>-test.csv`. Requires `--labeled`. |
 | `--list-features` | flag | False | List available features and exit |
 
 ### Examples
@@ -216,6 +217,10 @@ python -m csi_toolkit process --list-features
 
 # Labeled with custom buffer
 python -m csi_toolkit process labeled.csv features.csv --labeled --transition-buffer 2
+
+# Stratified train/test split (70% train, 30% test)
+# Creates features-train.csv and features-test.csv
+python -m csi_toolkit process labeled.csv features.csv --labeled --split 70
 ```
 
 ## train

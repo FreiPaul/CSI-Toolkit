@@ -1,11 +1,51 @@
 """Feature extraction pipeline for CSI data."""
 
 import csv
+from collections import defaultdict
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 
 from .windowing import CSISample, WindowData, create_windows
 from .features import registry, FeatureConfig
+
+
+def stratified_split(
+    results: List[Dict[str, Any]],
+    train_ratio: float
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Split results into train/test sets, stratified by label.
+
+    Args:
+        results: List of feature dictionaries (must have 'label' key)
+        train_ratio: Fraction of data for training (0.0 to 1.0)
+
+    Returns:
+        Tuple of (train_results, test_results)
+    """
+    # Group by label
+    by_label = defaultdict(list)
+    for row in results:
+        label = row.get('label')
+        by_label[label].append(row)
+
+    train_results = []
+    test_results = []
+
+    # Split each label group
+    for label in sorted(by_label.keys()):
+        rows = by_label[label]
+        n_train = round(len(rows) * train_ratio)
+        # Ensure at least 1 in each set if possible
+        if n_train == 0 and len(rows) > 1:
+            n_train = 1
+        elif n_train == len(rows) and len(rows) > 1:
+            n_train = len(rows) - 1
+
+        train_results.extend(rows[:n_train])
+        test_results.extend(rows[n_train:])
+
+    return train_results, test_results
 
 
 class FeatureExtractor:
@@ -46,7 +86,7 @@ class FeatureExtractor:
         input_csv: str,
         output_csv: str,
         window_size: int
-    ):
+    ) -> List[Dict[str, Any]]:
         """
         Process CSV file and extract features.
 
@@ -54,6 +94,36 @@ class FeatureExtractor:
             input_csv: Path to input CSV file
             output_csv: Path to output features CSV file
             window_size: Number of samples per window
+
+        Returns:
+            List of feature dictionaries (one per window)
+
+        Raises:
+            FileNotFoundError: If input file doesn't exist
+            ValueError: If insufficient data or invalid parameters
+        """
+        results = self.extract_features(input_csv, window_size)
+
+        print(f"Writing features to {output_csv}...")
+        self._write_csv(output_csv, results)
+        print(f"Done! Wrote {len(results)} rows")
+
+        return results
+
+    def extract_features(
+        self,
+        input_csv: str,
+        window_size: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract features from CSV file without writing output.
+
+        Args:
+            input_csv: Path to input CSV file
+            window_size: Number of samples per window
+
+        Returns:
+            List of feature dictionaries (one per window)
 
         Raises:
             FileNotFoundError: If input file doesn't exist
@@ -111,9 +181,17 @@ class FeatureExtractor:
         skipped_count = (valid_end - valid_start) - len(results)
         print(f"Calculated features for {len(results)} windows (skipped {valid_start} start, {self.max_n_next} end, {skipped_count} transitions)")
 
-        print(f"Writing features to {output_csv}...")
+        return results
+
+    def write_results(self, output_csv: str, results: List[Dict[str, Any]]):
+        """
+        Write feature results to CSV file.
+
+        Args:
+            output_csv: Path to output CSV file
+            results: List of feature dictionaries
+        """
         self._write_csv(output_csv, results)
-        print(f"Done! Wrote {len(results)} rows")
 
     def _read_csv(self, file_path: str) -> List[CSISample]:
         """
