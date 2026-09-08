@@ -34,4 +34,7 @@ def test_both_entry_points_agree_on_the_exit_code(tmp_path):
     beside_interpreter = Path(sys.executable).with_name("csi-toolkit")
     console_script = str(beside_interpreter) if beside_interpreter.exists() else shutil.which("csi-toolkit")
     assert console_script, "csi-toolkit is not installed in this environment"
-    assert _run([sys.executable, "-m", "csi_toolkit"], tmp_path) == _run([console_script], tmp_path)
+    from_module = _run([sys.executable, "-m", "csi_toolkit"], tmp_path)
+    from_script = _run([console_script], tmp_path)
+    assert from_script != 0
+    assert from_module == from_script
