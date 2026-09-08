@@ -373,7 +373,7 @@ def info_command(args):
     return 0
 
 
-def main():
+def main(argv=None):
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
         description='CSI Toolkit - Modular pipeline for CSI data processing',
@@ -714,7 +714,7 @@ def main():
     info_parser.set_defaults(func=info_command)
 
     # Parse arguments
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Execute command
     return args.func(args)
