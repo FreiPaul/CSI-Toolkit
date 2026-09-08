@@ -88,6 +88,12 @@ disallow_any_generics = false
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
+minversion = "8.0"
 testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-addopts = "-v --cov=csi_toolkit --cov-report=term-missing"
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers --strict-config"
+pythonpath = ["."]
+xfail_strict = true
+markers = [
+    "e2e: drives the whole pipeline through the CLI, needs the replay server",
+]
