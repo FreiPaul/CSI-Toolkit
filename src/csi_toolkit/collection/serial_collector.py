@@ -136,17 +136,25 @@ class SerialCollector:
             return
 
         self.running = True
-        print(f"Starting CSI data collection")
+        interactive = sys.stdin.isatty()
+        print("Starting CSI data collection")
         print(self.config)
-        print("\n[LABELING] Press keys 0-9 to set label (0=unlabeled, 1-9=classes)")
-        print(f"[LABELING] Press 'q' to quit collection")
-        print(f"[LABELING] Current label: {self.current_label} (unlabeled)")
+        if interactive:
+            print("\n[LABELING] Press keys 0-9 to set label (0=unlabeled, 1-9=classes)")
+            print("[LABELING] Press 'q' to quit collection")
+            print(f"[LABELING] Current label: {self.current_label} (unlabeled)")
+        else:
+            print("\n[LABELING] No terminal attached, every sample is written unlabeled")
 
         try:
-            # Start keyboard input thread
-            self.keyboard_running = True
-            self.keyboard_thread = threading.Thread(target=self._keyboard_input_thread, daemon=True)
-            self.keyboard_thread.start()
+            # Reading single keypresses needs a terminal, so labeling is only
+            # available when one is attached.
+            self.keyboard_running = interactive
+            if interactive:
+                self.keyboard_thread = threading.Thread(
+                    target=self._keyboard_input_thread, daemon=True
+                )
+                self.keyboard_thread.start()
 
             # Open serial port
             self._open_serial()
