@@ -18,7 +18,7 @@ CSV_HEADER = [
     "first_word",
     "data",
     "amplitudes",
-    "label"
+    "label",
 ]
 
 # Serial communication defaults

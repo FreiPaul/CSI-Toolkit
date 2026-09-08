@@ -78,7 +78,7 @@ def plot_amplitude_over_windows(df: pd.DataFrame) -> plt.Figure:
         color_map = {label: colors[i % len(colors)] for i, label in enumerate(labels)}
 
         # Find contiguous regions of same label
-        x_values = x.values if hasattr(x, 'values') else x
+        x_values = x.values if hasattr(x, "values") else x
         label_values = df["label"].values
 
         # Add background spans for each contiguous region
@@ -159,7 +159,7 @@ def _plot_single_feature(
         colors = plt.cm.Set1.colors
         color_map = {label: colors[i % len(colors)] for i, label in enumerate(labels)}
 
-        x_values = x.values if hasattr(x, 'values') else x
+        x_values = x.values if hasattr(x, "values") else x
         label_values = df["label"].values
 
         i = 0

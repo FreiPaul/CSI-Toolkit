@@ -15,7 +15,7 @@ class CSISample:
     label: Optional[int] = None  # Optional class label (0-9)
 
     @classmethod
-    def from_csv_row(cls, row: dict, labeled_mode: bool = False) -> 'CSISample':
+    def from_csv_row(cls, row: dict, labeled_mode: bool = False) -> "CSISample":
         """
         Create CSISample from CSV row dictionary.
 
@@ -32,38 +32,34 @@ class CSISample:
         from ..core.parser import parse_amplitude_json
         from ..processing.amplitude import calculate_amplitudes
 
-        seq = int(row.get('seq', 0))
-        timestamp = row.get('local_timestamp', '')
-        mac = row.get('mac', '')
+        seq = int(row.get("seq", 0))
+        timestamp = row.get("local_timestamp", "")
+        mac = row.get("mac", "")
 
         # Extract label if in labeled mode
         label = None
         if labeled_mode:
-            label_str = row.get('label', '0')
+            label_str = row.get("label", "0")
             try:
                 label = int(label_str)
             except (ValueError, TypeError):
                 label = 0  # Default to unlabeled if parsing fails
 
         # Try to get pre-calculated amplitudes first
-        amplitudes_str = row.get('amplitudes', '')
-        if amplitudes_str and amplitudes_str != '[]':
+        amplitudes_str = row.get("amplitudes", "")
+        if amplitudes_str and amplitudes_str != "[]":
             try:
                 amplitudes = parse_amplitude_json(amplitudes_str)
                 if amplitudes:
                     return cls(
-                        seq=seq,
-                        timestamp=timestamp,
-                        mac=mac,
-                        amplitudes=amplitudes,
-                        label=label
+                        seq=seq, timestamp=timestamp, mac=mac, amplitudes=amplitudes, label=label
                     )
-            except:
+            except Exception:
                 pass  # Fall through to calculate from Q,I data
 
         # If no amplitudes, calculate from Q,I data
-        data_str = row.get('data', '')
-        if not data_str or data_str == '[]':
+        data_str = row.get("data", "")
+        if not data_str or data_str == "[]":
             raise ValueError("Empty or missing data (Q,I values)")
 
         qi_values = parse_amplitude_json(data_str)  # This parses Q,I JSON
@@ -73,13 +69,7 @@ class CSISample:
         # Calculate amplitudes from Q,I values
         amplitudes = calculate_amplitudes(qi_values)
 
-        return cls(
-            seq=seq,
-            timestamp=timestamp,
-            mac=mac,
-            amplitudes=amplitudes,
-            label=label
-        )
+        return cls(seq=seq, timestamp=timestamp, mac=mac, amplitudes=amplitudes, label=label)
 
 
 @dataclass
@@ -110,9 +100,7 @@ def create_windows(samples: List[CSISample], window_size: int) -> List[WindowDat
         raise ValueError(f"Window size must be positive, got {window_size}")
 
     if len(samples) < window_size:
-        raise ValueError(
-            f"Insufficient samples: need at least {window_size}, got {len(samples)}"
-        )
+        raise ValueError(f"Insufficient samples: need at least {window_size}, got {len(samples)}")
 
     windows = []
     num_complete_windows = len(samples) // window_size
@@ -126,7 +114,7 @@ def create_windows(samples: List[CSISample], window_size: int) -> List[WindowDat
             window_id=i,
             start_seq=window_samples[0].seq,
             end_seq=window_samples[-1].seq,
-            samples=window_samples
+            samples=window_samples,
         )
         windows.append(window)
 

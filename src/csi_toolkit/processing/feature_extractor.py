@@ -6,12 +6,11 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 
 from .windowing import CSISample, WindowData, create_windows
-from .features import registry, FeatureConfig
+from .features import registry
 
 
 def stratified_split(
-    results: List[Dict[str, Any]],
-    train_ratio: float
+    results: List[Dict[str, Any]], train_ratio: float
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Split results into train/test sets, stratified by label.
@@ -26,7 +25,7 @@ def stratified_split(
     # Group by label
     by_label = defaultdict(list)
     for row in results:
-        label = row.get('label')
+        label = row.get("label")
         by_label[label].append(row)
 
     train_results = []
@@ -55,7 +54,7 @@ class FeatureExtractor:
         self,
         feature_names: Optional[List[str]] = None,
         labeled_mode: bool = False,
-        transition_buffer: int = 1
+        transition_buffer: int = 1,
     ):
         """
         Initialize feature extractor.
@@ -82,11 +81,7 @@ class FeatureExtractor:
         self.transition_buffer = transition_buffer
 
     def process_file(
-        self,
-        input_csv: str,
-        output_csv: str,
-        window_size: int,
-        split: Optional[int] = None
+        self, input_csv: str, output_csv: str, window_size: int, split: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Process CSV file and extract features.
@@ -120,7 +115,7 @@ class FeatureExtractor:
             # Generate output filenames with -train and -test suffixes
             output_path = Path(output_csv)
             stem = output_path.stem
-            suffix = output_path.suffix or '.csv'
+            suffix = output_path.suffix or ".csv"
             parent = output_path.parent
 
             train_path = parent / f"{stem}-train{suffix}"
@@ -146,14 +141,14 @@ class FeatureExtractor:
         self,
         all_results: List[Dict[str, Any]],
         train_results: List[Dict[str, Any]],
-        test_results: List[Dict[str, Any]]
+        test_results: List[Dict[str, Any]],
     ):
         """Print a summary of the stratified split per label."""
         from collections import Counter
 
-        all_labels = Counter(r.get('label') for r in all_results)
-        train_labels = Counter(r.get('label') for r in train_results)
-        test_labels = Counter(r.get('label') for r in test_results)
+        all_labels = Counter(r.get("label") for r in all_results)
+        train_labels = Counter(r.get("label") for r in train_results)
+        test_labels = Counter(r.get("label") for r in test_results)
 
         print("\nSplit summary per label:")
         print(f"  {'Label':<10} {'Total':>8} {'Train':>8} {'Test':>8} {'Train%':>8}")
@@ -171,11 +166,7 @@ class FeatureExtractor:
         total_pct = (total_train / total_all * 100) if total_all > 0 else 0
         print(f"  {'Total':<10} {total_all:>8} {total_train:>8} {total_test:>8} {total_pct:>7.1f}%")
 
-    def extract_features(
-        self,
-        input_csv: str,
-        window_size: int
-    ) -> List[Dict[str, Any]]:
+    def extract_features(self, input_csv: str, window_size: int) -> List[Dict[str, Any]]:
         """
         Extract features from CSV file without writing output.
 
@@ -218,7 +209,9 @@ class FeatureExtractor:
             # from using data from transition windows
             after_buffer = max(self.transition_buffer, self.max_n_prev)
             discard_windows = self._expand_buffer(transition_windows, len(windows), after_buffer)
-            print(f"Found {len(transition_windows)} transition windows, discarding {len(discard_windows)} total (buffer: {self.transition_buffer} before, {after_buffer} after)")
+            print(
+                f"Found {len(transition_windows)} transition windows, discarding {len(discard_windows)} total (buffer: {self.transition_buffer} before, {after_buffer} after)"
+            )
 
             # Also discard windows with label 0 (unlabeled/transition class)
             label_zero_windows = self._find_label_zero_windows(windows)
@@ -226,7 +219,9 @@ class FeatureExtractor:
                 discard_windows.update(label_zero_windows)
                 print(f"Discarding {len(label_zero_windows)} additional windows with label 0")
 
-        print(f"Extracting features (requires {self.max_n_prev} prev, {self.max_n_next} next windows)...")
+        print(
+            f"Extracting features (requires {self.max_n_prev} prev, {self.max_n_next} next windows)..."
+        )
         results = []
         valid_start = self.max_n_prev
         valid_end = len(windows) - self.max_n_next
@@ -240,7 +235,9 @@ class FeatureExtractor:
             results.append(features)
 
         skipped_count = (valid_end - valid_start) - len(results)
-        print(f"Calculated features for {len(results)} windows (skipped {valid_start} start, {self.max_n_next} end, {skipped_count} transitions)")
+        print(
+            f"Calculated features for {len(results)} windows (skipped {valid_start} start, {self.max_n_next} end, {skipped_count} transitions)"
+        )
 
         return results
 
@@ -265,7 +262,7 @@ class FeatureExtractor:
             List of CSISample objects
         """
         samples = []
-        with open(file_path, 'r', newline='') as f:
+        with open(file_path, "r", newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 try:
@@ -352,11 +349,7 @@ class FeatureExtractor:
                     discard.add(buffered_id)
         return discard
 
-    def _calculate_features(
-        self,
-        windows: List[WindowData],
-        window_idx: int
-    ) -> Dict[str, Any]:
+    def _calculate_features(self, windows: List[WindowData], window_idx: int) -> Dict[str, Any]:
         """
         Calculate all features for a single window.
 
@@ -371,14 +364,14 @@ class FeatureExtractor:
 
         # Start with window metadata
         row = {
-            'window_id': window.window_id,
-            'start_seq': window.start_seq,
-            'end_seq': window.end_seq,
+            "window_id": window.window_id,
+            "start_seq": window.start_seq,
+            "end_seq": window.end_seq,
         }
 
         # Add label if in labeled mode (all samples have same label)
         if self.labeled_mode and window.samples:
-            row['label'] = window.samples[0].label
+            row["label"] = window.samples[0].label
 
         # Calculate each feature
         for feature_config in self.features:
@@ -388,19 +381,13 @@ class FeatureExtractor:
             # Extract previous windows' samples
             prev_samples = [
                 windows[i].samples
-                for i in range(
-                    window_idx - feature_config.n_prev_windows,
-                    window_idx
-                )
+                for i in range(window_idx - feature_config.n_prev_windows, window_idx)
             ]
 
             # Extract next windows' samples
             next_samples = [
                 windows[i].samples
-                for i in range(
-                    window_idx + 1,
-                    window_idx + 1 + feature_config.n_next_windows
-                )
+                for i in range(window_idx + 1, window_idx + 1 + feature_config.n_next_windows)
             ]
 
             # Calculate feature value
@@ -408,7 +395,9 @@ class FeatureExtractor:
                 value = feature_config.func(current_samples, prev_samples, next_samples)
                 row[feature_config.name] = value
             except Exception as e:
-                print(f"Warning: Failed to calculate {feature_config.name} for window {window_idx}: {e}")
+                print(
+                    f"Warning: Failed to calculate {feature_config.name} for window {window_idx}: {e}"
+                )
                 row[feature_config.name] = None
 
         return row
@@ -428,7 +417,7 @@ class FeatureExtractor:
         # Get column names from first result
         fieldnames = list(results[0].keys())
 
-        with open(file_path, 'w', newline='') as f:
+        with open(file_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(results)
@@ -456,7 +445,7 @@ class FeatureExtractor:
         window_samples: List[CSISample],
         window_id: int = 0,
         prev_windows: Optional[List[List[CSISample]]] = None,
-        next_windows: Optional[List[List[CSISample]]] = None
+        next_windows: Optional[List[List[CSISample]]] = None,
     ) -> Dict[str, Any]:
         """
         Extract features from a single window of samples.
@@ -483,7 +472,7 @@ class FeatureExtractor:
             window_id=window_id,
             start_seq=window_samples[0].seq if window_samples else 0,
             end_seq=window_samples[-1].seq if window_samples else 0,
-            samples=window_samples
+            samples=window_samples,
         )
 
         # Check if we need context windows
@@ -506,12 +495,14 @@ class FeatureExtractor:
         # Add previous windows (if any)
         if prev_windows:
             for prev_samples in prev_windows:
-                windows.append(WindowData(
-                    window_id=-1,  # Dummy ID
-                    start_seq=prev_samples[0].seq if prev_samples else 0,
-                    end_seq=prev_samples[-1].seq if prev_samples else 0,
-                    samples=prev_samples
-                ))
+                windows.append(
+                    WindowData(
+                        window_id=-1,  # Dummy ID
+                        start_seq=prev_samples[0].seq if prev_samples else 0,
+                        end_seq=prev_samples[-1].seq if prev_samples else 0,
+                        samples=prev_samples,
+                    )
+                )
 
         # Add current window
         current_window_idx = len(windows)
@@ -520,12 +511,14 @@ class FeatureExtractor:
         # Add next windows (if any)
         if next_windows:
             for next_samples in next_windows:
-                windows.append(WindowData(
-                    window_id=-1,  # Dummy ID
-                    start_seq=next_samples[0].seq if next_samples else 0,
-                    end_seq=next_samples[-1].seq if next_samples else 0,
-                    samples=next_samples
-                ))
+                windows.append(
+                    WindowData(
+                        window_id=-1,  # Dummy ID
+                        start_seq=next_samples[0].seq if next_samples else 0,
+                        end_seq=next_samples[-1].seq if next_samples else 0,
+                        samples=next_samples,
+                    )
+                )
 
         # Calculate features
         return self._calculate_features(windows, current_window_idx)

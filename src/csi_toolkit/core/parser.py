@@ -71,7 +71,7 @@ def parse_amplitude_json(json_str: str) -> List[float]:
         # Fallback to regex parsing for malformed JSON
         try:
             # Extract numbers from string like "[1, 2, 3, ...]"
-            matches = re.findall(r'-?\d+', json_str)
+            matches = re.findall(r"-?\d+", json_str)
             if matches:
                 return [int(m) for m in matches]
         except Exception as e:
@@ -90,9 +90,9 @@ def extract_amplitudes_from_row(row: Dict[str, Any]) -> Optional[List[float]]:
     Returns:
         List of amplitude values or None if not present
     """
-    amplitudes_str = row.get('amplitudes', '')
+    amplitudes_str = row.get("amplitudes", "")
 
-    if not amplitudes_str or amplitudes_str == '[]':
+    if not amplitudes_str or amplitudes_str == "[]":
         return None
 
     try:

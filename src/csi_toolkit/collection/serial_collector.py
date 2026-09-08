@@ -76,13 +76,15 @@ class SerialCollector:
             import tty
             import termios
             import select
+
             unix_compatible = True
         except ImportError:
             # Windows fallback
             try:
                 import msvcrt
+
                 unix_compatible = False
-            except ImportError:
+            except Exception:
                 print("[WARNING] Keyboard input not available on this platform")
                 return
 
@@ -108,7 +110,7 @@ class SerialCollector:
             # Windows
             while self.keyboard_running:
                 if msvcrt.kbhit():
-                    char = msvcrt.getch().decode('utf-8', errors='ignore')
+                    char = msvcrt.getch().decode("utf-8", errors="ignore")
                     self._process_key_input(char)
                 time.sleep(0.1)
 
@@ -119,13 +121,13 @@ class SerialCollector:
         Args:
             char: Character pressed
         """
-        if char in '0123456789':
+        if char in "0123456789":
             new_label = int(char)
             if new_label != self.current_label:
                 self.current_label = new_label
                 label_name = "unlabeled" if new_label == 0 else f"class {new_label}"
                 print(f"\n[LABEL] Changed to: {label_name} ({new_label})")
-        elif char == 'q':
+        elif char == "q":
             # Allow 'q' to quit
             print("\n[QUIT] Stopping collection...")
             self.stop()
@@ -154,7 +156,7 @@ class SerialCollector:
             # Prepare CSV header (add predicted_label if live inference is enabled)
             header = CSV_HEADER.copy()
             if self.live_inference_handler:
-                header.append('predicted_label')
+                header.append("predicted_label")
                 print(f"[LIVE INFERENCE] Enabled - predictions will be saved to CSV")
 
             # Open CSV writer
@@ -200,9 +202,7 @@ class SerialCollector:
         """Open serial port connection."""
         try:
             self.serial_port = serial.Serial(
-                port=self.config.serial_port,
-                baudrate=self.config.baudrate,
-                timeout=1.0
+                port=self.config.serial_port, baudrate=self.config.baudrate, timeout=1.0
             )
 
             # Clear any buffered data
@@ -228,7 +228,7 @@ class SerialCollector:
 
                 # Decode line
                 try:
-                    line = line_bytes.decode('utf-8', errors='ignore').strip()
+                    line = line_bytes.decode("utf-8", errors="ignore").strip()
                 except UnicodeDecodeError:
                     self.error_count += 1
                     continue
@@ -243,7 +243,7 @@ class SerialCollector:
                 time.sleep(1.0)
                 try:
                     self._open_serial()
-                except:
+                except Exception:
                     break
 
             except KeyboardInterrupt:
@@ -266,7 +266,7 @@ class SerialCollector:
             return  # Not a CSI_DATA line
 
         # Get current timestamp
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         fields[9] = timestamp  # Update local_timestamp field
 
         # Extract and process amplitudes
@@ -310,7 +310,7 @@ class SerialCollector:
             return
 
         # Prepend type field and append label for CSV
-        full_row = ['CSI_DATA'] + fields + [str(self.current_label)]
+        full_row = ["CSI_DATA"] + fields + [str(self.current_label)]
 
         # Live inference (if enabled)
         if self.live_inference_handler:
@@ -319,11 +319,13 @@ class SerialCollector:
 
             # Update current prediction if window was complete
             if prediction_info:
-                self.current_prediction = prediction_info.get('prediction', 'Unknown')
-                self.current_confidence = prediction_info.get('confidence', 0.0)
+                self.current_prediction = prediction_info.get("prediction", "Unknown")
+                self.current_confidence = prediction_info.get("confidence", 0.0)
 
             # Add predicted label to the row (use current prediction or 'Unknown')
-            pred_label = self.current_prediction if self.current_prediction is not None else 'Unknown'
+            pred_label = (
+                self.current_prediction if self.current_prediction is not None else "Unknown"
+            )
             full_row.append(str(pred_label))
 
         # Write to CSV
@@ -339,9 +341,14 @@ class SerialCollector:
         if self.packet_count % 100 == 0:
             if self.live_inference_handler and self.current_prediction is not None:
                 conf_str = f" ({self.current_confidence:.2f})" if self.current_confidence else ""
-                print(f"Packets: {self.packet_count}, Errors: {self.error_count} | Prediction: {self.current_prediction}{conf_str}", end='\r')
+                print(
+                    f"Packets: {self.packet_count}, Errors: {self.error_count} | Prediction: {self.current_prediction}{conf_str}",
+                    end="\r",
+                )
             else:
-                print(f"Packets collected: {self.packet_count}, Errors: {self.error_count}", end='\r')
+                print(
+                    f"Packets collected: {self.packet_count}, Errors: {self.error_count}", end="\r"
+                )
 
     def get_statistics(self) -> dict:
         """
@@ -351,7 +358,7 @@ class SerialCollector:
             Dictionary of statistics
         """
         return {
-            'packet_count': self.packet_count,
-            'error_count': self.error_count,
-            'error_rate': self.error_count / max(1, self.packet_count),
+            "packet_count": self.packet_count,
+            "error_count": self.error_count,
+            "error_rate": self.error_count / max(1, self.packet_count),
         }

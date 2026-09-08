@@ -10,13 +10,13 @@ from .utils import get_amplitudes_matrix
 
 
 @registry.register(
-    'mean_subcarrier_var',
-    description='Mean variance across all subcarriers (per-sample variability)'
+    "mean_subcarrier_var",
+    description="Mean variance across all subcarriers (per-sample variability)",
 )
 def mean_subcarrier_variance(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate mean variance across all subcarriers.
@@ -33,13 +33,12 @@ def mean_subcarrier_variance(
 
 
 @registry.register(
-    'max_subcarrier_var',
-    description='Maximum per-sample subcarrier variance in window'
+    "max_subcarrier_var", description="Maximum per-sample subcarrier variance in window"
 )
 def max_subcarrier_variance(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate maximum subcarrier variance across samples.
@@ -52,13 +51,12 @@ def max_subcarrier_variance(
 
 
 @registry.register(
-    'min_subcarrier_var',
-    description='Minimum per-sample subcarrier variance in window'
+    "min_subcarrier_var", description="Minimum per-sample subcarrier variance in window"
 )
 def min_subcarrier_variance(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate minimum subcarrier variance across samples.
@@ -70,14 +68,11 @@ def min_subcarrier_variance(
     return float(np.min(per_sample_var))
 
 
-@registry.register(
-    'subcarrier_range',
-    description='Range of per-subcarrier mean amplitudes'
-)
+@registry.register("subcarrier_range", description="Range of per-subcarrier mean amplitudes")
 def subcarrier_amplitude_range(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate range of mean amplitudes across subcarriers.

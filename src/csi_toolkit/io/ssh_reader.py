@@ -54,7 +54,7 @@ class SSHReader:
         Returns:
             Tuple of (user, host, remote_path)
         """
-        match = re.match(r'([^@]+)@([^:]+):(.+)', ssh_path)
+        match = re.match(r"([^@]+)@([^:]+):(.+)", ssh_path)
         if not match:
             raise ValueError(f"Invalid SSH path format: {ssh_path}")
         return match.groups()
@@ -69,19 +69,11 @@ class SSHReader:
         Returns:
             Command output as string
         """
-        ssh_cmd = [
-            'ssh',
-            f'{self.user}@{self.host}',
-            command
-        ]
+        ssh_cmd = ["ssh", f"{self.user}@{self.host}", command]
 
         try:
             result = subprocess.run(
-                ssh_cmd,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout,
-                check=True
+                ssh_cmd, capture_output=True, text=True, timeout=self.timeout, check=True
             )
             return result.stdout
         except subprocess.TimeoutExpired:
@@ -126,7 +118,7 @@ class SSHReader:
         tail_content = self._run_ssh_command(tail_cmd)
 
         # Combine header and tail content
-        full_content = header + '\n' + tail_content
+        full_content = header + "\n" + tail_content
 
         # Parse CSV content
         rows = []
@@ -147,11 +139,7 @@ class SSHReader:
             return
 
         self.running = True
-        self.thread = threading.Thread(
-            target=self._tail_loop,
-            args=(callback,),
-            daemon=True
-        )
+        self.thread = threading.Thread(target=self._tail_loop, args=(callback,), daemon=True)
         self.thread.start()
 
     def stop(self):
@@ -180,12 +168,14 @@ class SSHReader:
         # Get initial file size and header
         try:
             # Get file size
-            size_output = self._run_ssh_command(f'stat -c %s "{self.remote_path}" 2>/dev/null || stat -f %z "{self.remote_path}"')
+            size_output = self._run_ssh_command(
+                f'stat -c %s "{self.remote_path}" 2>/dev/null || stat -f %z "{self.remote_path}"'
+            )
             file_size = int(size_output.strip())
 
             # Read header
             header_output = self._run_ssh_command(f'head -1 "{self.remote_path}"')
-            self.header = header_output.strip().split(',')
+            self.header = header_output.strip().split(",")
 
             # Read initial content (last part of file)
             if file_size > 1000000:  # If file is > 1MB, only read last 1MB
@@ -199,7 +189,7 @@ class SSHReader:
 
             # Parse initial content
             reader = csv.DictReader(io.StringIO(initial_content))
-            initial_rows = list(reader)[-self.max_buffer_size:]  # Keep last n rows
+            initial_rows = list(reader)[-self.max_buffer_size :]  # Keep last n rows
 
             with self.lock:
                 self.buffer.extend(initial_rows)
@@ -219,7 +209,9 @@ class SSHReader:
         while self.running:
             try:
                 # Get current file size
-                size_output = self._run_ssh_command(f'stat -c %s "{self.remote_path}" 2>/dev/null || stat -f %z "{self.remote_path}"')
+                size_output = self._run_ssh_command(
+                    f'stat -c %s "{self.remote_path}" 2>/dev/null || stat -f %z "{self.remote_path}"'
+                )
                 current_size = int(size_output.strip())
 
                 # Check if file has grown
@@ -231,10 +223,10 @@ class SSHReader:
 
                     # Handle partial lines
                     full_content = self.partial_line + new_content
-                    lines = full_content.split('\n')
+                    lines = full_content.split("\n")
 
                     # Save last partial line for next iteration
-                    if not full_content.endswith('\n'):
+                    if not full_content.endswith("\n"):
                         self.partial_line = lines[-1]
                         lines = lines[:-1]
                     else:
@@ -243,7 +235,7 @@ class SSHReader:
                     # Parse new rows
                     if lines and lines[0]:  # Skip empty lines
                         # Create CSV content with header
-                        csv_content = ','.join(self.header) + '\n' + '\n'.join(lines)
+                        csv_content = ",".join(self.header) + "\n" + "\n".join(lines)
                         reader = csv.DictReader(io.StringIO(csv_content))
                         new_rows = list(reader)
 

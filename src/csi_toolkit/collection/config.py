@@ -45,7 +45,7 @@ class CollectorConfig:
                 raise ConfigurationError(f"Specified .env file not found: {env_file}")
         else:
             # Try to load .env from current working directory first
-            cwd_env = Path.cwd() / '.env'
+            cwd_env = Path.cwd() / ".env"
             if cwd_env.exists():
                 load_dotenv(cwd_env, override=True)
                 self._env_file_loaded = str(cwd_env)
@@ -56,20 +56,12 @@ class CollectorConfig:
                     self._env_file_loaded = "found in parent directory"
 
         # Set configuration with fallback to env vars and defaults
-        self.serial_port = (
-            serial_port or
-            os.getenv('SERIAL_PORT') or
-            DEFAULT_SERIAL_PORT
-        )
+        self.serial_port = serial_port or os.getenv("SERIAL_PORT") or DEFAULT_SERIAL_PORT
 
-        self.baudrate = (
-            baudrate or
-            int(os.getenv('BAUDRATE', DEFAULT_BAUDRATE))
-        )
+        self.baudrate = baudrate or int(os.getenv("BAUDRATE", DEFAULT_BAUDRATE))
 
-        self.flush_interval = (
-            flush_interval or
-            int(os.getenv('FLUSH_INTERVAL', DEFAULT_FLUSH_INTERVAL))
+        self.flush_interval = flush_interval or int(
+            os.getenv("FLUSH_INTERVAL", DEFAULT_FLUSH_INTERVAL)
         )
 
         self.output_dir = output_dir
@@ -89,7 +81,7 @@ class CollectorConfig:
             raise ConfigurationError(f"Invalid flush interval: {self.flush_interval}")
 
     @classmethod
-    def from_env_file(cls, env_file: str) -> 'CollectorConfig':
+    def from_env_file(cls, env_file: str) -> "CollectorConfig":
         """
         Create configuration from environment file.
 
@@ -109,15 +101,19 @@ class CollectorConfig:
             Configuration dictionary
         """
         return {
-            'serial_port': self.serial_port,
-            'baudrate': self.baudrate,
-            'flush_interval': self.flush_interval,
-            'output_dir': self.output_dir,
+            "serial_port": self.serial_port,
+            "baudrate": self.baudrate,
+            "flush_interval": self.flush_interval,
+            "output_dir": self.output_dir,
         }
 
     def __str__(self) -> str:
         """String representation of configuration."""
-        env_info = f"\n  env_file={self._env_file_loaded}" if self._env_file_loaded else "\n  env_file=not loaded"
+        env_info = (
+            f"\n  env_file={self._env_file_loaded}"
+            if self._env_file_loaded
+            else "\n  env_file=not loaded"
+        )
         return (
             f"CollectorConfig(\n"
             f"  serial_port={self.serial_port},\n"

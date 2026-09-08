@@ -32,17 +32,15 @@ def load_metadata(model_dir: str) -> Dict[str, Any]:
             "Make sure the model directory contains metadata.json"
         )
 
-    with open(metadata_path, 'r') as f:
+    with open(metadata_path, "r") as f:
         metadata = json.load(f)
 
     # Validate required fields
-    required_fields = ['model_type', 'features', 'n_features', 'n_classes']
+    required_fields = ["model_type", "features", "n_features", "n_classes"]
     missing_fields = [f for f in required_fields if f not in metadata]
 
     if missing_fields:
-        raise ValueError(
-            f"Invalid metadata: missing required fields {missing_fields}"
-        )
+        raise ValueError(f"Invalid metadata: missing required fields {missing_fields}")
 
     return metadata
 
@@ -81,13 +79,13 @@ def load_model_with_metadata(model_dir: str) -> Tuple[BaseModel, Dict[str, Any]]
     metadata = load_metadata(model_dir)
 
     # Get model type
-    model_type = metadata['model_type']
+    model_type = metadata["model_type"]
 
     # Create model instance (empty, will be populated by load())
     try:
         model = model_registry.create_model(model_type)
     except ValueError:
-        available = ', '.join(model_registry.list_names())
+        available = ", ".join(model_registry.list_names())
         raise ValueError(
             f"Unknown model type '{model_type}'. "
             f"Available types: {available}. "
@@ -109,9 +107,7 @@ def load_model_with_metadata(model_dir: str) -> Tuple[BaseModel, Dict[str, Any]]
 
 
 def validate_feature_compatibility(
-    csv_features: list,
-    model_features: list,
-    strict: bool = True
+    csv_features: list, model_features: list, strict: bool = True
 ) -> None:
     """
     Validate that CSV features match model's expected features.
@@ -184,9 +180,9 @@ def format_metrics(metrics: Dict[str, Any], indent: int = 0) -> str:
             lines.append(f"{indent_str}{name}: {value:.4f}")
         elif isinstance(value, str):
             # Multi-line string (e.g., classification report)
-            if '\n' in value:
+            if "\n" in value:
                 lines.append(f"{indent_str}{name}:")
-                for line in value.split('\n'):
+                for line in value.split("\n"):
                     lines.append(f"{indent_str}  {line}")
             else:
                 lines.append(f"{indent_str}{name}: {value}")

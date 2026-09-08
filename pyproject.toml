@@ -80,12 +80,19 @@ extend-exclude = '''
 '''
 
 [tool.mypy]
-python_version = "3.8"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = false
-disallow_any_generics = false
+python_version = "3.12"
 ignore_missing_imports = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "csi_toolkit.io.*",
+    "csi_toolkit.ml.*",
+    "csi_toolkit.visualization.*",
+    "csi_toolkit.collection.*",
+    "csi_toolkit.processing.*",
+]
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

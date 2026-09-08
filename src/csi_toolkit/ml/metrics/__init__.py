@@ -5,4 +5,4 @@ from .registry import registry, MetricConfig
 # Import metric implementations to trigger registration
 from . import classification
 
-__all__ = ['registry', 'MetricConfig']
+__all__ = ["registry", "MetricConfig"]

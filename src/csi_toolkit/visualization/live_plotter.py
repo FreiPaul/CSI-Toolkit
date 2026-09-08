@@ -1,25 +1,22 @@
 """Live plotting functionality for CSI data."""
 
-import time
 import threading
-from typing import Optional, List
+from typing import Optional
 from collections import deque
 import matplotlib
 
-# Try to set a backend that works on the current system
-# Priority: MacOSX (native on macOS) > TkAgg > Qt5Agg > automatic
 try:
     import platform
-    if platform.system() == 'Darwin':  # macOS
-        matplotlib.use('MacOSX')
+
+    if platform.system() == "Darwin":  # macOS
+        matplotlib.use("MacOSX")
     else:
-        # Try TkAgg for other platforms
         try:
-            matplotlib.use('TkAgg')
-        except:
-            pass  # Let matplotlib choose automatically
-except:
-    pass  # Let matplotlib use default backend
+            matplotlib.use("TkAgg")
+        except Exception:
+            pass
+except Exception:
+    pass
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -41,7 +38,7 @@ class LivePlotter:
         refresh_rate: float = 0.2,
         max_points: int = 20000,
         display_limit: Optional[int] = None,
-        filter_type: str = 'moving_average',
+        filter_type: str = "moving_average",
         filter_params: Optional[dict] = None,
     ):
         """
@@ -92,17 +89,13 @@ class LivePlotter:
         self.running = True
 
         # Determine if SSH or local file
-        if '@' in self.file_path and ':' in self.file_path:
+        if "@" in self.file_path and ":" in self.file_path:
             self.reader = SSHReader(
-                self.file_path,
-                poll_interval=0.05,
-                max_buffer_size=self.max_points
+                self.file_path, poll_interval=0.05, max_buffer_size=self.max_points
             )
         else:
             self.reader = CSVTailer(
-                self.file_path,
-                poll_interval=0.05,
-                max_buffer_size=self.max_points
+                self.file_path, poll_interval=0.05, max_buffer_size=self.max_points
             )
 
         # Start reader with callback
@@ -117,7 +110,7 @@ class LivePlotter:
             self._update_plot_animation,
             interval=int(self.refresh_rate * 1000),  # Convert to milliseconds
             blit=False,
-            cache_frame_data=False
+            cache_frame_data=False,
         )
 
         try:
@@ -134,7 +127,7 @@ class LivePlotter:
         if self.reader:
             self.reader.stop()
 
-        plt.close('all')
+        plt.close("all")
 
     def _process_row(self, row: dict):
         """
@@ -145,11 +138,11 @@ class LivePlotter:
         """
         try:
             # Extract sequence number
-            seq = int(row.get('seq', 0))
+            seq = int(row.get("seq", 0))
 
             # Extract and parse amplitudes
-            amplitudes_str = row.get('amplitudes', '')
-            if not amplitudes_str or amplitudes_str == '[]':
+            amplitudes_str = row.get("amplitudes", "")
+            if not amplitudes_str or amplitudes_str == "[]":
                 return
 
             # Parse amplitude JSON
@@ -181,22 +174,22 @@ class LivePlotter:
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(12, 8))
 
         # Setup top plot (mean amplitude)
-        self.ax1.set_title('Mean Amplitude Across All Subcarriers')
-        self.ax1.set_xlabel('Sequence Number')
-        self.ax1.set_ylabel('Amplitude')
+        self.ax1.set_title("Mean Amplitude Across All Subcarriers")
+        self.ax1.set_xlabel("Sequence Number")
+        self.ax1.set_ylabel("Amplitude")
         self.ax1.grid(True, alpha=0.3)
-        self.line1_raw, = self.ax1.plot([], [], 'b-', alpha=0.3, label='Raw')
-        self.line1_filtered, = self.ax1.plot([], [], 'r-', label='Filtered')
-        self.ax1.legend(loc='upper right')
+        (self.line1_raw,) = self.ax1.plot([], [], "b-", alpha=0.3, label="Raw")
+        (self.line1_filtered,) = self.ax1.plot([], [], "r-", label="Filtered")
+        self.ax1.legend(loc="upper right")
 
         # Setup bottom plot (single subcarrier)
-        self.ax2.set_title(f'Subcarrier {self.subcarrier} Amplitude')
-        self.ax2.set_xlabel('Sequence Number')
-        self.ax2.set_ylabel('Amplitude')
+        self.ax2.set_title(f"Subcarrier {self.subcarrier} Amplitude")
+        self.ax2.set_xlabel("Sequence Number")
+        self.ax2.set_ylabel("Amplitude")
         self.ax2.grid(True, alpha=0.3)
-        self.line2_raw, = self.ax2.plot([], [], 'b-', alpha=0.3, label='Raw')
-        self.line2_filtered, = self.ax2.plot([], [], 'r-', label='Filtered')
-        self.ax2.legend(loc='upper right')
+        (self.line2_raw,) = self.ax2.plot([], [], "b-", alpha=0.3, label="Raw")
+        (self.line2_filtered,) = self.ax2.plot([], [], "r-", label="Filtered")
+        self.ax2.legend(loc="upper right")
 
         plt.tight_layout()
 
@@ -218,22 +211,14 @@ class LivePlotter:
 
         # Apply display limit
         if len(seq_nums) > self.display_limit:
-            seq_nums = seq_nums[-self.display_limit:]
-            mean_amps = mean_amps[-self.display_limit:]
-            sub_amps = sub_amps[-self.display_limit:]
+            seq_nums = seq_nums[-self.display_limit :]
+            mean_amps = mean_amps[-self.display_limit :]
+            sub_amps = sub_amps[-self.display_limit :]
 
         # Apply filtering
         if len(mean_amps) > 1:
-            filtered_mean = apply_filter(
-                mean_amps,
-                self.filter_type,
-                **self.filter_params
-            )
-            filtered_sub = apply_filter(
-                sub_amps,
-                self.filter_type,
-                **self.filter_params
-            )
+            filtered_mean = apply_filter(mean_amps, self.filter_type, **self.filter_params)
+            filtered_sub = apply_filter(sub_amps, self.filter_type, **self.filter_params)
         else:
             filtered_mean = mean_amps
             filtered_sub = sub_amps
@@ -247,7 +232,7 @@ class LivePlotter:
         # Adjust axes limits
         for ax, raw_data, filtered_data in [
             (self.ax1, mean_amps, filtered_mean),
-            (self.ax2, sub_amps, filtered_sub)
+            (self.ax2, sub_amps, filtered_sub),
         ]:
             ax.relim()
             ax.autoscale_view()

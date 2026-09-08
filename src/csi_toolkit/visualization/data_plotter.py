@@ -41,9 +41,7 @@ class DataPlotter:
             # Get specific plots by name
             plots_to_generate = registry.get_by_names(plot_names)
             # Filter to only applicable plots
-            plots_to_generate = [
-                p for p in plots_to_generate if p.condition(self.df)
-            ]
+            plots_to_generate = [p for p in plots_to_generate if p.condition(self.df)]
             if len(plots_to_generate) < len(plot_names):
                 skipped = set(plot_names) - {p.name for p in plots_to_generate}
                 for name in skipped:

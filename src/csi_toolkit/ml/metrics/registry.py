@@ -26,12 +26,7 @@ class MetricRegistry:
     def __init__(self):
         self._metrics: Dict[str, MetricConfig] = {}
 
-    def register(
-        self,
-        name: str,
-        description: str = "",
-        requires_proba: bool = False
-    ):
+    def register(self, name: str, description: str = "", requires_proba: bool = False):
         """
         Decorator to register a metric function.
 
@@ -48,15 +43,13 @@ class MetricRegistry:
             def accuracy_score(y_true, y_pred):
                 return (y_true == y_pred).mean()
         """
+
         def decorator(func: Callable):
             if name in self._metrics:
                 raise ValueError(f"Metric '{name}' is already registered")
 
             self._metrics[name] = MetricConfig(
-                name=name,
-                func=func,
-                description=description,
-                requires_proba=requires_proba
+                name=name, func=func, description=description, requires_proba=requires_proba
             )
 
             return func
@@ -77,10 +70,8 @@ class MetricRegistry:
             ValueError: If metric is not registered
         """
         if name not in self._metrics:
-            available = ', '.join(self.list_names())
-            raise ValueError(
-                f"Metric '{name}' not found. Available metrics: {available}"
-            )
+            available = ", ".join(self.list_names())
+            raise ValueError(f"Metric '{name}' not found. Available metrics: {available}")
         return self._metrics[name]
 
     def get_all(self) -> List[MetricConfig]:
@@ -132,10 +123,7 @@ class MetricRegistry:
         return config.func(y_true, y_pred)
 
     def compute_all(
-        self,
-        y_true: np.ndarray,
-        y_pred: np.ndarray,
-        y_proba: np.ndarray = None
+        self, y_true: np.ndarray, y_pred: np.ndarray, y_proba: np.ndarray = None
     ) -> Dict[str, Any]:
         """
         Compute all registered metrics.

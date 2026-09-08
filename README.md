@@ -131,8 +131,45 @@ CSI Toolkit is built for modularity and can be easily extended:
 
 The registry-based architecture allows extensions without modifying core code.
 
+## Development & Testing
+
+Install development dependencies:
+
+```bash
+pip install -e ".[dev,ml]"
+```
+
+Run lint checks and format checks matching CI:
+
+```bash
+# Check formatting
+black --check src tests
+
+# Lint with flake8
+flake8 src tests
+
+# Type check with mypy
+mypy src
+```
+
+Run unit and end-to-end test suites:
+
+```bash
+# Unit tests
+pytest tests/unit
+
+# End-to-end tests
+pytest tests/e2e
+```
+
+Build Docker container:
+
+```bash
+docker build -t csi-toolkit:test .
+```
+
 ## Project Information
 
 Developed by Paul Herrmann for his Seminar Paper at RWTH Aachen University.
 
-For questions or issues, please contact: paul.herrmann@rwth-aachen.de
+For questions or issues, please contact: <paul.herrmann@rwth-aachen.de>

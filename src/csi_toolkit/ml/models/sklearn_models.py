@@ -1,7 +1,7 @@
 """Scikit-learn model implementations for CSI Toolkit."""
 
 import pickle
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 import numpy as np
 
 try:

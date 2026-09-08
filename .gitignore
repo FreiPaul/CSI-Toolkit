@@ -6,4 +6,9 @@
 data
 src/data
 models
-*.egg-info
+*.egg-info/
+build/
+dist/
+.coverage
+.pytest_cache/
+__pycache__/

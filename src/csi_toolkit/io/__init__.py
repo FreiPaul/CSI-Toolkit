@@ -5,8 +5,8 @@ from .csv_reader import CSVReader, CSVTailer
 from .ssh_reader import SSHReader
 
 __all__ = [
-    'CSVWriter',
-    'CSVReader',
-    'CSVTailer',
-    'SSHReader',
+    "CSVWriter",
+    "CSVReader",
+    "CSVTailer",
+    "SSHReader",
 ]

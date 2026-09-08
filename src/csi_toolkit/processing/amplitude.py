@@ -1,7 +1,7 @@
 """Amplitude calculation and processing utilities."""
 
 import math
-from typing import List, Tuple, Dict, Optional
+from typing import List, Dict
 import statistics
 
 
@@ -63,25 +63,24 @@ def compute_amplitude_statistics(amplitudes: List[float]) -> Dict[str, float]:
     """
     if not amplitudes:
         return {
-            'mean': 0.0,
-            'std': 0.0,
-            'min': 0.0,
-            'max': 0.0,
-            'median': 0.0,
+            "mean": 0.0,
+            "std": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "median": 0.0,
         }
 
     return {
-        'mean': statistics.mean(amplitudes),
-        'std': statistics.stdev(amplitudes) if len(amplitudes) > 1 else 0.0,
-        'min': min(amplitudes),
-        'max': max(amplitudes),
-        'median': statistics.median(amplitudes),
+        "mean": statistics.mean(amplitudes),
+        "std": statistics.stdev(amplitudes) if len(amplitudes) > 1 else 0.0,
+        "min": min(amplitudes),
+        "max": max(amplitudes),
+        "median": statistics.median(amplitudes),
     }
 
 
 def extract_subcarrier_amplitudes(
-    amplitude_series: List[List[float]],
-    subcarrier_index: int
+    amplitude_series: List[List[float]], subcarrier_index: int
 ) -> List[float]:
     """
     Extract amplitude values for a specific subcarrier across time.
@@ -105,10 +104,7 @@ def extract_subcarrier_amplitudes(
     return subcarrier_values
 
 
-def normalize_amplitudes(
-    amplitudes: List[float],
-    method: str = 'max'
-) -> List[float]:
+def normalize_amplitudes(amplitudes: List[float], method: str = "max") -> List[float]:
     """
     Normalize amplitude values.
 
@@ -122,20 +118,20 @@ def normalize_amplitudes(
     if not amplitudes:
         return []
 
-    if method == 'max':
+    if method == "max":
         max_val = max(amplitudes)
         if max_val > 0:
             return [a / max_val for a in amplitudes]
         return amplitudes
 
-    elif method == 'zscore':
+    elif method == "zscore":
         mean = statistics.mean(amplitudes)
         std = statistics.stdev(amplitudes) if len(amplitudes) > 1 else 1.0
         if std > 0:
             return [(a - mean) / std for a in amplitudes]
         return [a - mean for a in amplitudes]
 
-    elif method == 'minmax':
+    elif method == "minmax":
         min_val = min(amplitudes)
         max_val = max(amplitudes)
         range_val = max_val - min_val

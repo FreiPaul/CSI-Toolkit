@@ -1,13 +1,10 @@
 """Signal processing filters for CSI data visualization."""
 
-from typing import List, Optional, Union
+from typing import List
 import warnings
 
 
-def moving_average(
-    data: List[float],
-    window_size: int = 10
-) -> List[float]:
+def moving_average(data: List[float], window_size: int = 10) -> List[float]:
     """
     Apply bidirectional moving average filter.
 
@@ -50,10 +47,7 @@ def moving_average(
 
 
 def butterworth_lowpass(
-    data: List[float],
-    sampling_rate: float = 100.0,
-    cutoff_freq: float = 2.0,
-    order: int = 4
+    data: List[float], sampling_rate: float = 100.0, cutoff_freq: float = 2.0, order: int = 4
 ) -> List[float]:
     """
     Apply Butterworth low-pass filter.
@@ -93,7 +87,7 @@ def butterworth_lowpass(
             normalized_cutoff = 0.9
 
         # Create filter
-        b, a = signal.butter(order, normalized_cutoff, btype='low')
+        b, a = signal.butter(order, normalized_cutoff, btype="low")
 
         # Apply filter (zero-phase using filtfilt)
         filtered_data = signal.filtfilt(b, a, data_array)
@@ -110,11 +104,7 @@ def butterworth_lowpass(
         return moving_average(data, window_size)
 
 
-def apply_filter(
-    data: List[float],
-    filter_type: str = 'moving_average',
-    **kwargs
-) -> List[float]:
+def apply_filter(data: List[float], filter_type: str = "moving_average", **kwargs) -> List[float]:
     """
     Apply a filter to the data.
 
@@ -126,17 +116,17 @@ def apply_filter(
     Returns:
         Filtered signal
     """
-    if filter_type == 'none' or not filter_type:
+    if filter_type == "none" or not filter_type:
         return data
 
-    if filter_type == 'moving_average':
-        window_size = kwargs.get('window_size', 10)
+    if filter_type == "moving_average":
+        window_size = kwargs.get("window_size", 10)
         return moving_average(data, window_size)
 
-    elif filter_type == 'butterworth':
-        sampling_rate = kwargs.get('sampling_rate', 100.0)
-        cutoff_freq = kwargs.get('cutoff_freq', 2.0)
-        order = kwargs.get('order', 4)
+    elif filter_type == "butterworth":
+        sampling_rate = kwargs.get("sampling_rate", 100.0)
+        cutoff_freq = kwargs.get("cutoff_freq", 2.0)
+        order = kwargs.get("order", 4)
         return butterworth_lowpass(data, sampling_rate, cutoff_freq, order)
 
     else:
@@ -144,10 +134,7 @@ def apply_filter(
         return data
 
 
-def median_filter(
-    data: List[float],
-    window_size: int = 5
-) -> List[float]:
+def median_filter(data: List[float], window_size: int = 5) -> List[float]:
     """
     Apply median filter to remove spikes.
 
@@ -176,9 +163,7 @@ def median_filter(
 
 
 def savitzky_golay_filter(
-    data: List[float],
-    window_size: int = 11,
-    poly_order: int = 3
+    data: List[float], window_size: int = 11, poly_order: int = 3
 ) -> List[float]:
     """
     Apply Savitzky-Golay filter for smoothing.
@@ -213,7 +198,6 @@ def savitzky_golay_filter(
 
     except ImportError:
         warnings.warn(
-            "scipy not available for Savitzky-Golay filter. "
-            "Using moving average instead."
+            "scipy not available for Savitzky-Golay filter. " "Using moving average instead."
         )
         return moving_average(data, window_size)

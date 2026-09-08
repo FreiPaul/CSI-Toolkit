@@ -21,13 +21,7 @@ class FeatureRegistry:
     def __init__(self):
         self._features = {}
 
-    def register(
-        self,
-        name: str,
-        n_prev: int = 0,
-        n_next: int = 0,
-        description: str = ""
-    ):
+    def register(self, name: str, n_prev: int = 0, n_next: int = 0, description: str = ""):
         """
         Decorator to register a feature function.
 
@@ -45,16 +39,18 @@ class FeatureRegistry:
             def mean_amplitude(current_samples, prev_samples, next_samples):
                 return np.mean([s.amplitude for s in current_samples])
         """
+
         def decorator(func: Callable) -> Callable:
             config = FeatureConfig(
                 name=name,
                 func=func,
                 n_prev_windows=n_prev,
                 n_next_windows=n_next,
-                description=description
+                description=description,
             )
             self._features[name] = config
             return func
+
         return decorator
 
     def get(self, name: str) -> Optional[FeatureConfig]:
@@ -104,10 +100,9 @@ class FeatureRegistry:
         for name in names:
             config = self.get(name)
             if config is None:
-                available = ', '.join(self.list_names())
+                available = ", ".join(self.list_names())
                 raise ValueError(
-                    f"Feature '{name}' not registered. "
-                    f"Available features: {available}"
+                    f"Feature '{name}' not registered. " f"Available features: {available}"
                 )
             configs.append(config)
         return configs

@@ -43,13 +43,12 @@ def _compute_adjacent_correlations(amp_matrix: np.ndarray) -> np.ndarray:
 
 
 @registry.register(
-    'mean_subcarrier_corr',
-    description='Mean correlation between adjacent subcarriers'
+    "mean_subcarrier_corr", description="Mean correlation between adjacent subcarriers"
 )
 def mean_subcarrier_correlation(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate mean correlation between adjacent subcarriers.
@@ -63,13 +62,13 @@ def mean_subcarrier_correlation(
 
 
 @registry.register(
-    'std_subcarrier_corr',
-    description='Standard deviation of correlations between adjacent subcarriers'
+    "std_subcarrier_corr",
+    description="Standard deviation of correlations between adjacent subcarriers",
 )
 def std_subcarrier_correlation(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate standard deviation of adjacent subcarrier correlations.
@@ -82,13 +81,12 @@ def std_subcarrier_correlation(
 
 
 @registry.register(
-    'max_subcarrier_corr',
-    description='Maximum correlation between adjacent subcarriers'
+    "max_subcarrier_corr", description="Maximum correlation between adjacent subcarriers"
 )
 def max_subcarrier_correlation(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate maximum correlation between adjacent subcarriers.
@@ -101,13 +99,12 @@ def max_subcarrier_correlation(
 
 
 @registry.register(
-    'min_subcarrier_corr',
-    description='Minimum correlation between adjacent subcarriers'
+    "min_subcarrier_corr", description="Minimum correlation between adjacent subcarriers"
 )
 def min_subcarrier_correlation(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate minimum correlation between adjacent subcarriers.

@@ -23,8 +23,8 @@ RUN pip install --upgrade pip setuptools wheel
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Install the package with all extras
-RUN pip install ".[ml,advanced]"
+# Install the package with ml extra
+RUN pip install ".[ml]"
 
 # Create directories for data and models (to be mounted as volumes)
 RUN mkdir -p /app/data /app/models /app/output /app/processed

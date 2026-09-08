@@ -9,9 +9,9 @@ from .models import registry as model_registry
 from .metrics import registry as metric_registry
 
 __all__ = [
-    'ModelTrainer',
-    'ModelPredictor',
-    'ModelEvaluator',
-    'model_registry',
-    'metric_registry',
+    "ModelTrainer",
+    "ModelPredictor",
+    "ModelEvaluator",
+    "model_registry",
+    "metric_registry",
 ]

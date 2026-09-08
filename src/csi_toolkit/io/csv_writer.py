@@ -4,7 +4,7 @@ import csv
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 
 from ..core.constants import (
     CSV_HEADER,
@@ -58,7 +58,7 @@ class CSVWriter:
     def open(self):
         """Open CSV file and write header."""
         self.start_time = datetime.now()
-        self.file = open(self.file_path, 'w', newline='')
+        self.file = open(self.file_path, "w", newline="")
         self.writer = csv.writer(self.file)
         self.writer.writerow(self.header)
         self.file.flush()
@@ -88,7 +88,7 @@ class CSVWriter:
         Args:
             row_dict: Dictionary with keys matching header columns
         """
-        row = [row_dict.get(col, '') for col in self.header]
+        row = [row_dict.get(col, "") for col in self.header]
         self.write_row(row)
 
     def flush(self):

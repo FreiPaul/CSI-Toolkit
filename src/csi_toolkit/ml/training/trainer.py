@@ -12,13 +12,11 @@ try:
     from sklearn.model_selection import train_test_split
 except ImportError:
     raise ImportError(
-        "scikit-learn is required for ML functionality. "
-        "Install with: pip install -e '.[ml]'"
+        "scikit-learn is required for ML functionality. " "Install with: pip install -e '.[ml]'"
     )
 
 from ..models.registry import registry as model_registry
 from ..models.base import BaseModel
-from ..metrics.registry import registry as metric_registry
 from ...core.constants import (
     DEFAULT_MODEL_TYPE,
     DEFAULT_TRAIN_SPLIT,
@@ -44,7 +42,7 @@ class ModelTrainer:
     """
 
     # Columns to exclude from feature extraction (metadata columns)
-    METADATA_COLUMNS = ['window_id', 'start_seq', 'end_seq', 'label']
+    METADATA_COLUMNS = ["window_id", "start_seq", "end_seq", "label"]
 
     def __init__(
         self,
@@ -53,7 +51,7 @@ class ModelTrainer:
         val_split: float = DEFAULT_VAL_SPLIT,
         test_split: float = DEFAULT_TEST_SPLIT,
         random_seed: int = DEFAULT_RANDOM_SEED,
-        model_params: Optional[Dict[str, Any]] = None
+        model_params: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize the model trainer.
@@ -69,9 +67,7 @@ class ModelTrainer:
         # Validate splits sum to 1.0
         total_split = train_split + val_split + test_split
         if not (0.99 <= total_split <= 1.01):  # Allow small floating point errors
-            raise ValueError(
-                f"Train/val/test splits must sum to 1.0, got {total_split}"
-            )
+            raise ValueError(f"Train/val/test splits must sum to 1.0, got {total_split}")
 
         self.model_type = model_type
         self.train_split = train_split
@@ -106,7 +102,7 @@ class ModelTrainer:
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
         # Read CSV
-        with open(csv_path, 'r', newline='') as f:
+        with open(csv_path, "r", newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
 
@@ -114,7 +110,7 @@ class ModelTrainer:
             raise ValueError("CSV file is empty")
 
         # Check for label column
-        if 'label' not in rows[0]:
+        if "label" not in rows[0]:
             raise ValueError(
                 "CSV file must contain a 'label' column. "
                 "Use 'csi_toolkit process --labeled' to generate labeled features."
@@ -122,10 +118,7 @@ class ModelTrainer:
 
         # Extract feature names (exclude metadata columns)
         all_columns = list(rows[0].keys())
-        feature_names = [
-            col for col in all_columns
-            if col not in self.METADATA_COLUMNS
-        ]
+        feature_names = [col for col in all_columns if col not in self.METADATA_COLUMNS]
 
         if not feature_names:
             raise ValueError("No feature columns found in CSV")
@@ -145,7 +138,7 @@ class ModelTrainer:
 
             # Extract label
             try:
-                label = int(row['label'])
+                label = int(row["label"])
             except (ValueError, KeyError):
                 raise ValueError("Invalid or missing label value")
 
@@ -162,9 +155,7 @@ class ModelTrainer:
         return X, y, feature_names
 
     def split_data(
-        self,
-        X: np.ndarray,
-        y: np.ndarray
+        self, X: np.ndarray, y: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Split data into train, validation, and test sets.
@@ -179,19 +170,17 @@ class ModelTrainer:
         # First split: separate test set
         test_size = self.test_split
         X_temp, X_test, y_temp, y_test = train_test_split(
-            X, y,
-            test_size=test_size,
-            random_state=self.random_seed,
-            stratify=y
+            X, y, test_size=test_size, random_state=self.random_seed, stratify=y
         )
 
         # Second split: separate train and validation from remaining data
         val_size_adjusted = self.val_split / (self.train_split + self.val_split)
         X_train, X_val, y_train, y_val = train_test_split(
-            X_temp, y_temp,
+            X_temp,
+            y_temp,
             test_size=val_size_adjusted,
             random_state=self.random_seed,
-            stratify=y_temp
+            stratify=y_temp,
         )
 
         print(f"Split sizes - Train: {len(X_train)}, Val: {len(X_val)}, Test: {len(X_test)}")
@@ -203,7 +192,7 @@ class ModelTrainer:
         X_train: np.ndarray,
         y_train: np.ndarray,
         X_val: Optional[np.ndarray] = None,
-        y_val: Optional[np.ndarray] = None
+        y_val: Optional[np.ndarray] = None,
     ) -> BaseModel:
         """
         Train a model on the provided data.
@@ -260,7 +249,7 @@ class ModelTrainer:
         self,
         output_dir: str,
         X_val: Optional[np.ndarray] = None,
-        y_val: Optional[np.ndarray] = None
+        y_val: Optional[np.ndarray] = None,
     ) -> None:
         """
         Save trained model and metadata to directory.
@@ -305,13 +294,13 @@ class ModelTrainer:
 
         # Save metadata as JSON
         metadata_path = os.path.join(output_dir, METADATA_FILENAME)
-        with open(metadata_path, 'w') as f:
+        with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=2)
         print(f"Saved metadata to: {metadata_path}")
 
         # Create training log
         log_path = os.path.join(output_dir, TRAINING_LOG_FILENAME)
-        with open(log_path, 'w') as f:
+        with open(log_path, "w") as f:
             f.write("CSI Toolkit Model Training Log\n")
             f.write("=" * 50 + "\n\n")
             f.write(f"Model Type: {self.model_type}\n")
@@ -330,11 +319,7 @@ class ModelTrainer:
                 f.write(f"  {i:2d}. {feat}\n")
         print(f"Saved training log to: {log_path}")
 
-    def train(
-        self,
-        input_csv: str,
-        output_dir: Optional[str] = None
-    ) -> str:
+    def train(self, input_csv: str, output_dir: Optional[str] = None) -> str:
         """
         Complete training pipeline: load data, train model, save results.
 

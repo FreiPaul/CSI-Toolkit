@@ -19,9 +19,9 @@ from .utils import (
 )
 
 __all__ = [
-    'registry',
-    'FeatureConfig',
-    'get_sample_mean_amplitudes',
-    'get_amplitudes_matrix',
-    'get_subcarrier_timeseries',
+    "registry",
+    "FeatureConfig",
+    "get_sample_mean_amplitudes",
+    "get_amplitudes_matrix",
+    "get_subcarrier_timeseries",
 ]

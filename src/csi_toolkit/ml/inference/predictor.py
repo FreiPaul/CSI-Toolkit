@@ -19,7 +19,7 @@ class ModelPredictor:
     """
 
     # Columns to exclude from feature extraction (metadata columns)
-    METADATA_COLUMNS = ['window_id', 'start_seq', 'end_seq', 'label']
+    METADATA_COLUMNS = ["window_id", "start_seq", "end_seq", "label"]
 
     def __init__(self, model_dir: str):
         """
@@ -41,7 +41,9 @@ class ModelPredictor:
 
         print(f"Loaded {self.metadata['model_type']} model from {model_dir}")
         print(f"Model expects {self.metadata['n_features']} features")
-        print(f"Model predicts {self.metadata['n_classes']} classes: {self.metadata['class_names']}")
+        print(
+            f"Model predicts {self.metadata['n_classes']} classes: {self.metadata['class_names']}"
+        )
 
     def load_features(self, csv_path: str) -> tuple[np.ndarray, List[str], List[Dict[str, Any]]]:
         """
@@ -64,7 +66,7 @@ class ModelPredictor:
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
         # Read CSV
-        with open(csv_path, 'r', newline='') as f:
+        with open(csv_path, "r", newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
 
@@ -73,20 +75,13 @@ class ModelPredictor:
 
         # Extract feature names (exclude metadata columns)
         all_columns = list(rows[0].keys())
-        feature_names = [
-            col for col in all_columns
-            if col not in self.METADATA_COLUMNS
-        ]
+        feature_names = [col for col in all_columns if col not in self.METADATA_COLUMNS]
 
         if not feature_names:
             raise ValueError("No feature columns found in CSV")
 
         # Validate feature compatibility with model
-        validate_feature_compatibility(
-            feature_names,
-            self.metadata['features'],
-            strict=True
-        )
+        validate_feature_compatibility(feature_names, self.metadata["features"], strict=True)
 
         # Extract features and metadata
         X = []
@@ -95,18 +90,14 @@ class ModelPredictor:
         for row in rows:
             # Extract features (in the same order as model training)
             features = []
-            for col in self.metadata['features']:
+            for col in self.metadata["features"]:
                 try:
                     features.append(float(row[col]))
                 except (ValueError, KeyError):
                     raise ValueError(f"Invalid or missing feature value in column '{col}'")
 
             # Store metadata columns
-            metadata_dict = {
-                col: row.get(col, '')
-                for col in self.METADATA_COLUMNS
-                if col in row
-            }
+            metadata_dict = {col: row.get(col, "") for col in self.METADATA_COLUMNS if col in row}
 
             X.append(features)
             metadata_rows.append(metadata_dict)
@@ -152,7 +143,7 @@ class ModelPredictor:
         predictions: np.ndarray,
         metadata_rows: List[Dict[str, Any]],
         output_path: str,
-        probabilities: Optional[np.ndarray] = None
+        probabilities: Optional[np.ndarray] = None,
     ) -> None:
         """
         Save predictions to CSV file.
@@ -168,12 +159,12 @@ class ModelPredictor:
 
         for i, pred in enumerate(predictions):
             row = {**metadata_rows[i]}  # Start with metadata
-            row['predicted_label'] = int(pred)
+            row["predicted_label"] = int(pred)
 
             # Add probabilities if available
             if probabilities is not None:
-                for class_idx, class_name in enumerate(self.metadata['class_names']):
-                    row[f'prob_class_{class_name}'] = float(probabilities[i, class_idx])
+                for class_idx, class_name in enumerate(self.metadata["class_names"]):
+                    row[f"prob_class_{class_name}"] = float(probabilities[i, class_idx])
 
             output_rows.append(row)
 
@@ -181,10 +172,10 @@ class ModelPredictor:
         if output_rows:
             fieldnames = list(output_rows[0].keys())
         else:
-            fieldnames = ['predicted_label']
+            fieldnames = ["predicted_label"]
 
         # Write CSV
-        with open(output_path, 'w', newline='') as f:
+        with open(output_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(output_rows)
@@ -192,10 +183,7 @@ class ModelPredictor:
         print(f"Saved {len(predictions)} predictions to: {output_path}")
 
     def run_inference(
-        self,
-        input_csv: str,
-        output_csv: Optional[str] = None,
-        include_probabilities: bool = False
+        self, input_csv: str, output_csv: Optional[str] = None, include_probabilities: bool = False
     ) -> str:
         """
         Complete inference pipeline: load data, predict, save results.

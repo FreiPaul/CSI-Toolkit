@@ -30,7 +30,7 @@ class CSVReader:
             List of dictionaries representing rows
         """
         rows = []
-        with open(self.file_path, 'r') as f:
+        with open(self.file_path, "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 rows.append(row)
@@ -46,7 +46,7 @@ class CSVReader:
         Returns:
             List of dictionaries representing the last n rows
         """
-        with open(self.file_path, 'r') as f:
+        with open(self.file_path, "r") as f:
             reader = csv.DictReader(f)
             rows = deque(reader, maxlen=n)
         return list(rows)
@@ -58,7 +58,7 @@ class CSVReader:
         Yields:
             Dictionary representing each row
         """
-        with open(self.file_path, 'r') as f:
+        with open(self.file_path, "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 yield row
@@ -104,11 +104,7 @@ class CSVTailer:
             return
 
         self.running = True
-        self.thread = threading.Thread(
-            target=self._tail_loop,
-            args=(callback,),
-            daemon=True
-        )
+        self.thread = threading.Thread(target=self._tail_loop, args=(callback,), daemon=True)
         self.thread.start()
 
     def stop(self):
@@ -145,7 +141,7 @@ class CSVTailer:
             return
 
         # Open file and read header
-        self.file = open(self.file_path, 'r', newline='')
+        self.file = open(self.file_path, "r", newline="")
         self.reader = csv.DictReader(self.file)
         self.header = self.reader.fieldnames
 
@@ -192,6 +188,7 @@ class CSVTailer:
             except Exception as e:
                 print(f"Error tailing file: {e}")
                 import traceback
+
                 traceback.print_exc()
                 break
 

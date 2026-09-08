@@ -9,14 +9,14 @@ from .utils import get_sample_mean_amplitudes
 
 
 @registry.register(
-    'mean_last3',
+    "mean_last3",
     n_prev=2,
-    description='Mean carrier amplitude across last 3 windows (including current)'
+    description="Mean carrier amplitude across last 3 windows (including current)",
 )
 def mean_amplitude_last3(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate mean carrier amplitude across last 3 windows.
@@ -48,14 +48,14 @@ def mean_amplitude_last3(
 
 
 @registry.register(
-    'std_last3',
+    "std_last3",
     n_prev=2,
-    description='Standard deviation of carrier amplitude across last 3 windows (including current)'
+    description="Standard deviation of carrier amplitude across last 3 windows (including current)",
 )
 def std_amplitude_last3(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate standard deviation of carrier amplitude across last 3 windows.
@@ -87,14 +87,12 @@ def std_amplitude_last3(
 
 
 @registry.register(
-    'delta_mean',
-    n_prev=1,
-    description='Change in mean amplitude from previous window'
+    "delta_mean", n_prev=1, description="Change in mean amplitude from previous window"
 )
 def delta_mean_amplitude(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate change in mean amplitude from previous window.
@@ -115,13 +113,12 @@ def delta_mean_amplitude(
 
 
 @registry.register(
-    'zero_crossing_rate',
-    description='Rate at which amplitude crosses its mean value'
+    "zero_crossing_rate", description="Rate at which amplitude crosses its mean value"
 )
 def zero_crossing_rate(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate zero-crossing rate of amplitude signal.

@@ -21,7 +21,7 @@ class ModelEvaluator:
     """
 
     # Columns to exclude from feature extraction (metadata columns)
-    METADATA_COLUMNS = ['window_id', 'start_seq', 'end_seq', 'label']
+    METADATA_COLUMNS = ["window_id", "start_seq", "end_seq", "label"]
 
     def __init__(self, model_dir: str, metric_names: Optional[List[str]] = None):
         """
@@ -51,7 +51,9 @@ class ModelEvaluator:
 
         print(f"Loaded {self.metadata['model_type']} model from {model_dir}")
         print(f"Model expects {self.metadata['n_features']} features")
-        print(f"Model predicts {self.metadata['n_classes']} classes: {self.metadata['class_names']}")
+        print(
+            f"Model predicts {self.metadata['n_classes']} classes: {self.metadata['class_names']}"
+        )
         print(f"Will compute {len(self.metrics)} metrics")
 
     def load_labeled_data(self, csv_path: str) -> tuple[np.ndarray, np.ndarray, List[str]]:
@@ -75,7 +77,7 @@ class ModelEvaluator:
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
         # Read CSV
-        with open(csv_path, 'r', newline='') as f:
+        with open(csv_path, "r", newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
 
@@ -83,7 +85,7 @@ class ModelEvaluator:
             raise ValueError("CSV file is empty")
 
         # Check for label column
-        if 'label' not in rows[0]:
+        if "label" not in rows[0]:
             raise ValueError(
                 "CSV file must contain a 'label' column for evaluation. "
                 "Use labeled data generated with 'csi_toolkit process --labeled'."
@@ -91,20 +93,13 @@ class ModelEvaluator:
 
         # Extract feature names (exclude metadata columns)
         all_columns = list(rows[0].keys())
-        feature_names = [
-            col for col in all_columns
-            if col not in self.METADATA_COLUMNS
-        ]
+        feature_names = [col for col in all_columns if col not in self.METADATA_COLUMNS]
 
         if not feature_names:
             raise ValueError("No feature columns found in CSV")
 
         # Validate feature compatibility with model
-        validate_feature_compatibility(
-            feature_names,
-            self.metadata['features'],
-            strict=True
-        )
+        validate_feature_compatibility(feature_names, self.metadata["features"], strict=True)
 
         # Extract features and labels (in the same order as model training)
         X = []
@@ -113,7 +108,7 @@ class ModelEvaluator:
         for row in rows:
             # Extract features
             features = []
-            for col in self.metadata['features']:
+            for col in self.metadata["features"]:
                 try:
                     features.append(float(row[col]))
                 except (ValueError, KeyError):
@@ -121,7 +116,7 @@ class ModelEvaluator:
 
             # Extract label
             try:
-                label = int(row['label'])
+                label = int(row["label"])
             except (ValueError, KeyError):
                 raise ValueError("Invalid or missing label value")
 
@@ -137,10 +132,7 @@ class ModelEvaluator:
         return X, y, feature_names
 
     def compute_metrics(
-        self,
-        y_true: np.ndarray,
-        y_pred: np.ndarray,
-        y_proba: Optional[np.ndarray] = None
+        self, y_true: np.ndarray, y_pred: np.ndarray, y_proba: Optional[np.ndarray] = None
     ) -> Dict[str, Any]:
         """
         Compute all registered metrics.
@@ -170,10 +162,7 @@ class ModelEvaluator:
         return results
 
     def save_evaluation(
-        self,
-        metrics: Dict[str, Any],
-        output_path_json: str,
-        output_path_txt: str
+        self, metrics: Dict[str, Any], output_path_json: str, output_path_txt: str
     ) -> None:
         """
         Save evaluation metrics to files.
@@ -198,12 +187,12 @@ class ModelEvaluator:
                 text_only_metrics[name] = value
 
         # Save JSON
-        with open(output_path_json, 'w') as f:
+        with open(output_path_json, "w") as f:
             json.dump(json_metrics, f, indent=2)
         print(f"Saved metrics (JSON) to: {output_path_json}")
 
         # Save text report
-        with open(output_path_txt, 'w') as f:
+        with open(output_path_txt, "w") as f:
             f.write("CSI Toolkit Model Evaluation Report\n")
             f.write("=" * 50 + "\n\n")
             f.write(f"Model: {self.metadata['model_type']}\n")
@@ -219,10 +208,7 @@ class ModelEvaluator:
         print(f"Saved evaluation report to: {output_path_txt}")
 
     def run_evaluation(
-        self,
-        input_csv: str,
-        output_json: Optional[str] = None,
-        output_txt: Optional[str] = None
+        self, input_csv: str, output_json: Optional[str] = None, output_txt: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Complete evaluation pipeline: load data, predict, compute metrics, save results.
@@ -260,9 +246,9 @@ class ModelEvaluator:
         # Print summary
         print(f"\nEvaluation Summary:")
         print(f"  Samples evaluated: {len(y_true)}")
-        if 'accuracy' in metrics:
+        if "accuracy" in metrics:
             print(f"  Accuracy: {metrics['accuracy']:.4f}")
-        if 'f1_macro' in metrics:
+        if "f1_macro" in metrics:
             print(f"  F1 (macro): {metrics['f1_macro']:.4f}")
 
         return metrics

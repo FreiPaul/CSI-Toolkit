@@ -16,7 +16,7 @@ from pathlib import Path
 
 # Try to import extract_features from the features.py file
 try:
-    _features_file = Path(__file__).parent / 'features.py'
+    _features_file = Path(__file__).parent / "features.py"
     if _features_file.exists():
         spec = importlib.util.spec_from_file_location("_features_legacy", _features_file)
         _features_legacy = importlib.util.module_from_spec(spec)
@@ -33,15 +33,15 @@ from .feature_extractor import FeatureExtractor
 
 __all__ = [
     # Amplitude processing
-    'calculate_amplitudes',
-    'compute_mean_amplitude',
-    'compute_amplitude_statistics',
-    'extract_subcarrier_amplitudes',
+    "calculate_amplitudes",
+    "compute_mean_amplitude",
+    "compute_amplitude_statistics",
+    "extract_subcarrier_amplitudes",
     # Legacy feature extraction
-    'extract_features',
+    "extract_features",
     # Windowed feature extraction
-    'CSISample',
-    'WindowData',
-    'create_windows',
-    'FeatureExtractor',
+    "CSISample",
+    "WindowData",
+    "create_windows",
+    "FeatureExtractor",
 ]

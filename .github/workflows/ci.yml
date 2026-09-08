@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Code Formatting & Type Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev,ml]
+
+      - name: Check formatting with Black
+        run: black --check src tests
+
+      - name: Lint with Flake8
+        run: flake8 src tests
+
+      - name: Type check with Mypy
+        run: mypy src
+
+  unit-test:
+    name: Unit Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev,ml]
+
+      - name: Run unit tests
+        run: pytest tests/unit
+
+  e2e-test:
+    name: End-to-End Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev,ml]
+
+      - name: Run E2E test suite
+        run: pytest tests/e2e
+
+  docker-build:
+    name: Docker Container Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: |
+          BUILD_LOG=$(mktemp)
+          docker build -t csi-toolkit:test . 2>&1 | tee "$BUILD_LOG"
+          
+          # Fail if pip emits warning about non-existent extra (e.g. WARNING: csi-toolkit 0.1.0 does not provide the extra)
+          if grep -i "does not provide the extra" "$BUILD_LOG"; then
+            echo "ERROR: Docker build triggered pip missing extra warning!"
+            exit 1
+          fi

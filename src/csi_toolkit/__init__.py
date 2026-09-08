@@ -27,22 +27,23 @@ from .io import CSVWriter, CSVReader, CSVTailer, SSHReader
 # Package metadata
 __all__ = [
     # Collection
-    'SerialCollector',
-    'CollectorConfig',
+    "SerialCollector",
+    "CollectorConfig",
     # Visualization
-    'LivePlotter',
-    'moving_average',
-    'butterworth_lowpass',
+    "LivePlotter",
+    "moving_average",
+    "butterworth_lowpass",
     # Processing
-    'calculate_amplitudes',
-    'compute_mean_amplitude',
-    'extract_features',
+    "calculate_amplitudes",
+    "compute_mean_amplitude",
+    "extract_features",
     # I/O
-    'CSVWriter',
-    'CSVReader',
-    'CSVTailer',
-    'SSHReader',
+    "CSVWriter",
+    "CSVReader",
+    "CSVTailer",
+    "SSHReader",
 ]
+
 
 # Optional: Print version when imported
 def get_version():

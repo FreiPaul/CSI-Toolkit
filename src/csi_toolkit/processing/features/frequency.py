@@ -16,13 +16,12 @@ from .utils import get_sample_mean_amplitudes
 
 
 @registry.register(
-    'dominant_freq',
-    description='Dominant frequency in amplitude signal (normalized)'
+    "dominant_freq", description="Dominant frequency in amplitude signal (normalized)"
 )
 def dominant_frequency(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate dominant frequency of amplitude signal.
@@ -54,14 +53,11 @@ def dominant_frequency(
     return 0.0
 
 
-@registry.register(
-    'spectral_entropy',
-    description='Entropy of power spectral density'
-)
+@registry.register("spectral_entropy", description="Entropy of power spectral density")
 def spectral_entropy(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate spectral entropy of amplitude signal.
@@ -93,14 +89,11 @@ def spectral_entropy(
     return 0.0
 
 
-@registry.register(
-    'spectral_centroid',
-    description='Center of mass of the frequency spectrum'
-)
+@registry.register("spectral_centroid", description="Center of mass of the frequency spectrum")
 def spectral_centroid(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate spectral centroid of amplitude signal.

@@ -12,11 +12,11 @@ from .plots import registry as plot_registry
 
 __all__ = [
     # Filters
-    'moving_average',
-    'butterworth_lowpass',
-    'apply_filter',
+    "moving_average",
+    "butterworth_lowpass",
+    "apply_filter",
     # Plotters
-    'LivePlotter',
-    'DataPlotter',
-    'plot_registry',
+    "LivePlotter",
+    "DataPlotter",
+    "plot_registry",
 ]

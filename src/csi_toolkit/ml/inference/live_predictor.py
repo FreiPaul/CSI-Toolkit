@@ -23,7 +23,7 @@ class LiveInferenceHandler:
         model_dir: str,
         window_size: int = 100,
         verbose: bool = True,
-        on_prediction: Optional[Callable[[int, Any, float], None]] = None
+        on_prediction: Optional[Callable[[int, Any, float], None]] = None,
     ):
         """
         Initialize live inference handler.
@@ -49,11 +49,11 @@ class LiveInferenceHandler:
         self.model, self.metadata = load_model_with_metadata(model_dir)
 
         # Initialize feature extractor with the same features used in training
-        feature_names = self.metadata['features']
+        feature_names = self.metadata["features"]
         self.feature_extractor = FeatureExtractor(
             feature_names=feature_names,
             labeled_mode=False,  # We don't need labels for live inference
-            transition_buffer=0  # No transition filtering in live mode
+            transition_buffer=0,  # No transition filtering in live mode
         )
 
         # Initialize buffer for collecting samples
@@ -74,7 +74,9 @@ class LiveInferenceHandler:
             print(f"  Features: {len(feature_names)}")
             print(f"  Window size: {window_size}")
             if self.max_history_size > 0:
-                print(f"  Requires {self.max_history_size} previous windows (predictions will start after window {self.max_history_size})")
+                print(
+                    f"  Requires {self.max_history_size} previous windows (predictions will start after window {self.max_history_size})"
+                )
             print()
 
     def on_packet(self, fields: List[str]) -> Optional[Dict[str, Any]]:
@@ -105,12 +107,16 @@ class LiveInferenceHandler:
             # Check if we have a complete window
             if len(self.buffer) >= self.window_size:
                 # Extract the window
-                window_samples = self.buffer[:self.window_size]
+                window_samples = self.buffer[: self.window_size]
 
                 # Perform prediction (with previous windows if available)
                 prediction_info = self._predict_window(
                     window_samples,
-                    prev_windows=self.window_history[-self.max_history_size:] if self.max_history_size > 0 else None
+                    prev_windows=(
+                        self.window_history[-self.max_history_size :]
+                        if self.max_history_size > 0
+                        else None
+                    ),
                 )
 
                 # Add this window to history
@@ -121,25 +127,25 @@ class LiveInferenceHandler:
                     self.window_history.pop(0)
 
                 # Clear buffer (non-overlapping windows)
-                self.buffer = self.buffer[self.window_size:]
+                self.buffer = self.buffer[self.window_size :]
 
                 # Update tracking
                 self.window_count += 1
-                self.last_prediction = prediction_info['prediction']
-                self.last_confidence = prediction_info['confidence']
+                self.last_prediction = prediction_info["prediction"]
+                self.last_confidence = prediction_info["confidence"]
 
                 # Display prediction
                 if self.verbose:
                     # During warmup, only display every 3rd window to reduce noise
-                    if prediction_info['prediction'] != 'Unknown' or self.window_count % 3 == 0:
+                    if prediction_info["prediction"] != "Unknown" or self.window_count % 3 == 0:
                         self._display_prediction(prediction_info)
 
                 # Call callback if provided
                 if self.on_prediction:
                     self.on_prediction(
-                        prediction_info['window_num'],
-                        prediction_info['prediction'],
-                        prediction_info['confidence']
+                        prediction_info["window_num"],
+                        prediction_info["prediction"],
+                        prediction_info["confidence"],
                     )
 
                 return prediction_info
@@ -151,10 +157,10 @@ class LiveInferenceHandler:
             if self.verbose:
                 print(f"\n[Live Inference] Error: {e}")
             return {
-                'prediction': 'Unknown',
-                'confidence': 0.0,
-                'window_num': self.window_count,
-                'error': str(e)
+                "prediction": "Unknown",
+                "confidence": 0.0,
+                "window_num": self.window_count,
+                "error": str(e),
             }
 
     def _fields_to_sample(self, fields: List[str]) -> CSISample:
@@ -175,7 +181,9 @@ class LiveInferenceHandler:
         # Convert list to dictionary using CSV_HEADER
         # The fields list matches CSV_HEADER structure
         if len(fields) < len(CSV_HEADER):
-            raise ValueError(f"Invalid fields length: {len(fields)}, expected at least {len(CSV_HEADER)}")
+            raise ValueError(
+                f"Invalid fields length: {len(fields)}, expected at least {len(CSV_HEADER)}"
+            )
 
         try:
             # Create dictionary from fields
@@ -191,9 +199,7 @@ class LiveInferenceHandler:
             raise ValueError(f"Failed to convert fields to CSISample: {e}")
 
     def _predict_window(
-        self,
-        samples: List[CSISample],
-        prev_windows: Optional[List[List[CSISample]]] = None
+        self, samples: List[CSISample], prev_windows: Optional[List[List[CSISample]]] = None
     ) -> Dict[str, Any]:
         """
         Predict label for a window of samples.
@@ -211,10 +217,10 @@ class LiveInferenceHandler:
                 if prev_windows is None or len(prev_windows) < self.max_history_size:
                     # Not enough history yet, return placeholder
                     return {
-                        'prediction': 'Unknown',
-                        'confidence': 0.0,
-                        'window_num': self.window_count,
-                        'error': f'Need {self.max_history_size} previous windows (have {len(prev_windows) if prev_windows else 0})'
+                        "prediction": "Unknown",
+                        "confidence": 0.0,
+                        "window_num": self.window_count,
+                        "error": f"Need {self.max_history_size} previous windows (have {len(prev_windows) if prev_windows else 0})",
                     }
 
             # Extract features using the feature extractor
@@ -222,12 +228,12 @@ class LiveInferenceHandler:
                 window_samples=samples,
                 window_id=self.window_count,
                 prev_windows=prev_windows,
-                next_windows=None
+                next_windows=None,
             )
 
             # Convert features to numpy array (in same order as model training)
             X = []
-            for feature_name in self.metadata['features']:
+            for feature_name in self.metadata["features"]:
                 if feature_name in features_dict:
                     X.append(features_dict[feature_name])
                 else:
@@ -243,7 +249,7 @@ class LiveInferenceHandler:
             # Get confidence (probability of predicted class)
             if probabilities is not None and len(probabilities.shape) == 2:
                 # Find which class index corresponds to the prediction
-                class_names = self.metadata['class_names']
+                class_names = self.metadata["class_names"]
                 if prediction in class_names:
                     pred_idx = class_names.index(prediction)
                     confidence = float(probabilities[0, pred_idx])
@@ -253,21 +259,21 @@ class LiveInferenceHandler:
                 confidence = 0.0
 
             return {
-                'prediction': prediction,
-                'confidence': confidence,
-                'window_num': self.window_count,
-                'probabilities': probabilities[0].tolist() if probabilities is not None else None,
-                'start_seq': samples[0].seq,
-                'end_seq': samples[-1].seq,
+                "prediction": prediction,
+                "confidence": confidence,
+                "window_num": self.window_count,
+                "probabilities": probabilities[0].tolist() if probabilities is not None else None,
+                "start_seq": samples[0].seq,
+                "end_seq": samples[-1].seq,
             }
 
         except Exception as e:
             # Return Unknown on error
             return {
-                'prediction': 'Unknown',
-                'confidence': 0.0,
-                'window_num': self.window_count,
-                'error': str(e)
+                "prediction": "Unknown",
+                "confidence": 0.0,
+                "window_num": self.window_count,
+                "error": str(e),
             }
 
     def _display_prediction(self, prediction_info: Dict[str, Any]):
@@ -277,14 +283,14 @@ class LiveInferenceHandler:
         Args:
             prediction_info: Dictionary with prediction details
         """
-        pred = prediction_info['prediction']
-        conf = prediction_info['confidence']
-        win_num = prediction_info['window_num']
+        pred = prediction_info["prediction"]
+        conf = prediction_info["confidence"]
+        win_num = prediction_info["window_num"]
 
-        if pred == 'Unknown':
-            error = prediction_info.get('error', 'Unknown error')
+        if pred == "Unknown":
+            error = prediction_info.get("error", "Unknown error")
             # Check if it's the "not enough history" case
-            if 'Need' in error and 'previous windows' in error:
+            if "Need" in error and "previous windows" in error:
                 print(f"[Window {win_num}] Prediction: Waiting for history... ({error})")
             else:
                 print(f"[Window {win_num}] Prediction: Unknown (Error: {error})")
@@ -317,9 +323,9 @@ class LiveInferenceHandler:
             Dictionary with inference statistics
         """
         return {
-            'packets_processed': self.packet_count,
-            'windows_predicted': self.window_count,
-            'buffer_size': len(self.buffer),
-            'last_prediction': self.last_prediction,
-            'last_confidence': self.last_confidence,
+            "packets_processed": self.packet_count,
+            "windows_predicted": self.window_count,
+            "buffer_size": len(self.buffer),
+            "last_prediction": self.last_prediction,
+            "last_confidence": self.last_confidence,
         }

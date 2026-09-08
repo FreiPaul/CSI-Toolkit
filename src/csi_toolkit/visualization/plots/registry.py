@@ -1,7 +1,7 @@
 """Plot registry for feature data visualization."""
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Any
+from typing import Callable, Dict, List
 
 import pandas as pd
 import matplotlib.pyplot as plt

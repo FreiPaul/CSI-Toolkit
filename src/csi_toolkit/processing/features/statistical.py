@@ -10,11 +10,11 @@ from .registry import registry
 from .utils import get_sample_mean_amplitudes
 
 
-@registry.register('range_amp', description='Range of carrier amplitude (max - min) in window')
+@registry.register("range_amp", description="Range of carrier amplitude (max - min) in window")
 def range_amplitude(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate amplitude range in window.
@@ -26,11 +26,11 @@ def range_amplitude(
     return float(np.max(sample_means) - np.min(sample_means))
 
 
-@registry.register('median_amp', description='Median carrier amplitude in window')
+@registry.register("median_amp", description="Median carrier amplitude in window")
 def median_amplitude(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate median amplitude in window.
@@ -41,11 +41,11 @@ def median_amplitude(
     return float(np.median(sample_means))
 
 
-@registry.register('var_amp', description='Variance of carrier amplitude in window')
+@registry.register("var_amp", description="Variance of carrier amplitude in window")
 def variance_amplitude(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate variance of amplitude in window.
@@ -56,11 +56,13 @@ def variance_amplitude(
     return float(np.var(sample_means))
 
 
-@registry.register('iqr_amp', description='Interquartile range (75th - 25th percentile) of amplitude')
+@registry.register(
+    "iqr_amp", description="Interquartile range (75th - 25th percentile) of amplitude"
+)
 def iqr_amplitude(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate interquartile range of amplitude.
@@ -72,11 +74,11 @@ def iqr_amplitude(
     return float(q75 - q25)
 
 
-@registry.register('skewness_amp', description='Skewness of amplitude distribution')
+@registry.register("skewness_amp", description="Skewness of amplitude distribution")
 def skewness_amplitude(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate skewness of amplitude distribution.
@@ -88,11 +90,11 @@ def skewness_amplitude(
     return float(stats.skew(sample_means))
 
 
-@registry.register('kurtosis_amp', description='Kurtosis of amplitude distribution')
+@registry.register("kurtosis_amp", description="Kurtosis of amplitude distribution")
 def kurtosis_amplitude(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate kurtosis of amplitude distribution.
@@ -104,11 +106,11 @@ def kurtosis_amplitude(
     return float(stats.kurtosis(sample_means))
 
 
-@registry.register('energy_amp', description='Total energy (sum of squared amplitudes) in window')
+@registry.register("energy_amp", description="Total energy (sum of squared amplitudes) in window")
 def energy_amplitude(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate total signal energy in window.
@@ -119,11 +121,11 @@ def energy_amplitude(
     return float(np.sum(np.square(sample_means)))
 
 
-@registry.register('rms_amp', description='Root mean square of amplitude in window')
+@registry.register("rms_amp", description="Root mean square of amplitude in window")
 def rms_amplitude(
     current_samples: List[CSISample],
     prev_samples: List[List[CSISample]],
-    next_samples: List[List[CSISample]]
+    next_samples: List[List[CSISample]],
 ) -> float:
     """
     Calculate root mean square of amplitude.
