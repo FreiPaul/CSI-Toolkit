@@ -24,17 +24,29 @@ def _use_interactive_backend():
     Only called when a live window is actually opened. Importing this module
     must not change the backend, or every headless caller of the package loses
     its own choice.
+
+    Raises:
+        RuntimeError: If no backend that can show a window is available.
     """
     if os.environ.get('MPLBACKEND'):
         return
 
-    candidates = ('MacOSX',) if platform.system() == 'Darwin' else ('TkAgg', 'Qt5Agg')
+    candidates = ('TkAgg', 'Qt5Agg')
+    if platform.system() == 'Darwin':
+        candidates = ('MacOSX',) + candidates
+
+    refusals = []
     for candidate in candidates:
         try:
             matplotlib.use(candidate)
             return
-        except Exception:
-            continue
+        except Exception as exc:
+            refusals.append(f"{candidate} ({exc})")
+
+    raise RuntimeError(
+        "No backend that can show a window is available. Install one, or set "
+        "MPLBACKEND to render without a display. Tried: " + ", ".join(refusals)
+    )
 
 
 class LivePlotter:
