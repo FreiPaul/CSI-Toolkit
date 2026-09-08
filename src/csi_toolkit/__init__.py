@@ -21,7 +21,7 @@ __author__ = "Paul Herrmann"
 # Import main components for easier access
 from .collection import SerialCollector, CollectorConfig
 from .visualization import LivePlotter, moving_average, butterworth_lowpass
-from .processing import calculate_amplitudes, compute_mean_amplitude, extract_features
+from .processing import calculate_amplitudes, compute_mean_amplitude
 from .io import CSVWriter, CSVReader, CSVTailer, SSHReader
 
 # Package metadata
@@ -36,7 +36,6 @@ __all__ = [
     # Processing
     'calculate_amplitudes',
     'compute_mean_amplitude',
-    'extract_features',
     # I/O
     'CSVWriter',
     'CSVReader',
