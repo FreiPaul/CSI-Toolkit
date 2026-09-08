@@ -52,6 +52,11 @@ python -m csi_toolkit collect --debug
 
 For machine learning applications, collect data with real-time keyboard labeling.
 
+Labeling reads single keypresses, so it needs a terminal. Without one, for
+example in a cron job or in `docker run` without `-t`, collection still works
+and every sample is written unlabeled. The `docker-compose.yml` service does
+not allocate a terminal by default; add `-t` if you want to label.
+
 ### Keyboard Controls
 
 During collection, press number keys to label activities:
