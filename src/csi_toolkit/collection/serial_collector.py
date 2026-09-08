@@ -55,6 +55,8 @@ class SerialCollector:
         self.current_prediction = None
         self.current_confidence = None
 
+        self._previous_handlers = {}
+
     def _install_signal_handlers(self):
         """
         Take over SIGINT and SIGTERM for the duration of a collection run.
@@ -65,8 +67,18 @@ class SerialCollector:
         if threading.current_thread() is not threading.main_thread():
             return
 
+        self._previous_handlers = {
+            signal.SIGINT: signal.getsignal(signal.SIGINT),
+            signal.SIGTERM: signal.getsignal(signal.SIGTERM),
+        }
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
+
+    def _restore_signal_handlers(self):
+        """Hand the signals back, so a finished run stops affecting the process."""
+        for signum, handler in self._previous_handlers.items():
+            signal.signal(signum, handler)
+        self._previous_handlers = {}
 
     def _signal_handler(self, _signum, _frame):
         """Handle shutdown signals gracefully."""
@@ -196,6 +208,7 @@ class SerialCollector:
     def stop(self):
         """Stop data collection and clean up resources."""
         self.running = False
+        self._restore_signal_handlers()
 
         # Stop keyboard input thread
         self.keyboard_running = False

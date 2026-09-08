@@ -1,5 +1,6 @@
-"""Constructing a collector must not change how the process handles signals."""
+"""A collector owns the shutdown signals only while it is collecting."""
 
+import contextlib
 import signal
 import threading
 
@@ -34,3 +35,23 @@ def test_a_collector_can_be_constructed_off_the_main_thread(tmp_path):
     worker.start()
     worker.join(timeout=30)
     assert not failure, failure
+
+
+def test_the_shutdown_signals_are_taken_over_and_handed_back(tmp_path):
+    collector = SerialCollector(_config(tmp_path))
+    before = signal.getsignal(signal.SIGTERM)
+    try:
+        collector._install_signal_handlers()
+        assert signal.getsignal(signal.SIGTERM) is not before
+        collector._restore_signal_handlers()
+        assert signal.getsignal(signal.SIGTERM) is before
+    finally:
+        signal.signal(signal.SIGTERM, before)
+
+
+def test_a_finished_collection_leaves_the_signals_as_it_found_them(tmp_path):
+    collector = SerialCollector(_config(tmp_path))
+    before = signal.getsignal(signal.SIGTERM)
+    with contextlib.suppress(Exception):
+        collector.start()  # the device is absent, so the run ends immediately
+    assert signal.getsignal(signal.SIGTERM) is before
