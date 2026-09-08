@@ -92,7 +92,7 @@ minversion = "8.0"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-ra --strict-markers --strict-config"
-pythonpath = ["."]
+pythonpath = ["src"]
 xfail_strict = true
 markers = [
     "e2e: drives the whole pipeline through the CLI, needs the replay server",
