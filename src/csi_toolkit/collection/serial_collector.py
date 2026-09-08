@@ -55,7 +55,16 @@ class SerialCollector:
         self.current_prediction = None
         self.current_confidence = None
 
-        # Setup signal handlers
+    def _install_signal_handlers(self):
+        """
+        Take over SIGINT and SIGTERM for the duration of a collection run.
+
+        Signals can only be installed from the main thread, and constructing a
+        collector must not change how the whole process reacts to them.
+        """
+        if threading.current_thread() is not threading.main_thread():
+            return
+
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
@@ -136,6 +145,7 @@ class SerialCollector:
             return
 
         self.running = True
+        self._install_signal_handlers()
         interactive = sys.stdin.isatty()
         print("Starting CSI data collection")
         print(self.config)
