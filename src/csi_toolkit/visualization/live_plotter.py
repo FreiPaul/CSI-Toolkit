@@ -1,26 +1,12 @@
 """Live plotting functionality for CSI data."""
 
+import os
+import platform
 import time
 import threading
 from typing import Optional, List
 from collections import deque
 import matplotlib
-
-# Try to set a backend that works on the current system
-# Priority: MacOSX (native on macOS) > TkAgg > Qt5Agg > automatic
-try:
-    import platform
-    if platform.system() == 'Darwin':  # macOS
-        matplotlib.use('MacOSX')
-    else:
-        # Try TkAgg for other platforms
-        try:
-            matplotlib.use('TkAgg')
-        except:
-            pass  # Let matplotlib choose automatically
-except:
-    pass  # Let matplotlib use default backend
-
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -29,6 +15,26 @@ from ..processing.amplitude import compute_mean_amplitude
 from ..io.csv_reader import CSVTailer
 from ..io.ssh_reader import SSHReader
 from .filters import apply_filter
+
+
+def _use_interactive_backend():
+    """
+    Switch to a backend that can show a window.
+
+    Only called when a live window is actually opened. Importing this module
+    must not change the backend, or every headless caller of the package loses
+    its own choice.
+    """
+    if os.environ.get('MPLBACKEND'):
+        return
+
+    candidates = ('MacOSX',) if platform.system() == 'Darwin' else ('TkAgg', 'Qt5Agg')
+    for candidate in candidates:
+        try:
+            matplotlib.use(candidate)
+            return
+        except Exception:
+            continue
 
 
 class LivePlotter:
@@ -89,6 +95,7 @@ class LivePlotter:
         if self.running:
             return
 
+        _use_interactive_backend()
         self.running = True
 
         # Determine if SSH or local file
