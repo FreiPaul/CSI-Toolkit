@@ -1,7 +1,10 @@
 """Collection has to run where no terminal is attached: docker, cron, a pipe."""
 
+import contextlib
 import subprocess
 import sys
+
+from csi_toolkit.collection import CollectorConfig, SerialCollector
 
 
 def _collect_without_stdin(tmp_path):
@@ -30,3 +33,15 @@ def test_collect_reports_a_missing_device(tmp_path):
 
 def test_collect_says_that_labeling_is_unavailable(tmp_path):
     assert "No terminal attached" in _collect_without_stdin(tmp_path).stdout
+
+
+def test_collect_survives_a_missing_stdin(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, "stdin", None)
+    config = CollectorConfig(
+        serial_port=str(tmp_path / "absent-device"),
+        baudrate=921600,
+        flush_interval=1,
+        output_dir=str(tmp_path / "out"),
+    )
+    with contextlib.suppress(ConnectionError):
+        SerialCollector(config).start()

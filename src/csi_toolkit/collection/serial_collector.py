@@ -158,7 +158,7 @@ class SerialCollector:
 
         self.running = True
         self._install_signal_handlers()
-        interactive = sys.stdin.isatty()
+        interactive = sys.stdin is not None and sys.stdin.isatty()
         print("Starting CSI data collection")
         print(self.config)
         if interactive:
