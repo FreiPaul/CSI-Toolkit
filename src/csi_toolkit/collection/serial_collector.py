@@ -55,9 +55,30 @@ class SerialCollector:
         self.current_prediction = None
         self.current_confidence = None
 
-        # Setup signal handlers
+        self._previous_handlers = {}
+
+    def _install_signal_handlers(self):
+        """
+        Take over SIGINT and SIGTERM for the duration of a collection run.
+
+        Signals can only be installed from the main thread, and constructing a
+        collector must not change how the whole process reacts to them.
+        """
+        if threading.current_thread() is not threading.main_thread():
+            return
+
+        self._previous_handlers = {
+            signal.SIGINT: signal.getsignal(signal.SIGINT),
+            signal.SIGTERM: signal.getsignal(signal.SIGTERM),
+        }
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
+
+    def _restore_signal_handlers(self):
+        """Hand the signals back, so a finished run stops affecting the process."""
+        for signum, handler in self._previous_handlers.items():
+            signal.signal(signum, handler)
+        self._previous_handlers = {}
 
     def _signal_handler(self, _signum, _frame):
         """Handle shutdown signals gracefully."""
@@ -136,17 +157,26 @@ class SerialCollector:
             return
 
         self.running = True
-        print(f"Starting CSI data collection")
+        self._install_signal_handlers()
+        interactive = sys.stdin is not None and sys.stdin.isatty()
+        print("Starting CSI data collection")
         print(self.config)
-        print("\n[LABELING] Press keys 0-9 to set label (0=unlabeled, 1-9=classes)")
-        print(f"[LABELING] Press 'q' to quit collection")
-        print(f"[LABELING] Current label: {self.current_label} (unlabeled)")
+        if interactive:
+            print("\n[LABELING] Press keys 0-9 to set label (0=unlabeled, 1-9=classes)")
+            print("[LABELING] Press 'q' to quit collection")
+            print(f"[LABELING] Current label: {self.current_label} (unlabeled)")
+        else:
+            print("\n[LABELING] No terminal attached, every sample is written unlabeled")
 
         try:
-            # Start keyboard input thread
-            self.keyboard_running = True
-            self.keyboard_thread = threading.Thread(target=self._keyboard_input_thread, daemon=True)
-            self.keyboard_thread.start()
+            # Reading single keypresses needs a terminal, so labeling is only
+            # available when one is attached.
+            self.keyboard_running = interactive
+            if interactive:
+                self.keyboard_thread = threading.Thread(
+                    target=self._keyboard_input_thread, daemon=True
+                )
+                self.keyboard_thread.start()
 
             # Open serial port
             self._open_serial()
@@ -178,6 +208,7 @@ class SerialCollector:
     def stop(self):
         """Stop data collection and clean up resources."""
         self.running = False
+        self._restore_signal_handlers()
 
         # Stop keyboard input thread
         self.keyboard_running = False
