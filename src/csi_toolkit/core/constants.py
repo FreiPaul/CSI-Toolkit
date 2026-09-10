@@ -11,6 +11,7 @@ CSV_HEADER = [
     "fft_gain",
     "agc_gain",
     "channel",
+    "device_timestamp",
     "local_timestamp",
     "sig_len",
     "rx_state",

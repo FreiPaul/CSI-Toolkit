@@ -296,14 +296,16 @@ class SerialCollector:
         if not fields:
             return  # Not a CSI_DATA line
 
-        # Get current timestamp
+        # Get current host wall-clock timestamp
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-        fields[9] = timestamp  # Update local_timestamp field
+        # fields[8] is device_timestamp counter from firmware.
+        # Insert host wall-clock timestamp at index 9 (local_timestamp), pushing sig_len to index 10.
+        fields.insert(9, timestamp)
 
         # Extract and process amplitudes
         try:
-            # Get the data field (JSON array)
-            data_field = fields[13] if len(fields) > 13 else ""
+            # Get the data field (JSON array, now at index 14 after insertion)
+            data_field = fields[14] if len(fields) > 14 else ""
 
             if data_field and data_field != "[]":
                 # Parse Q,I values

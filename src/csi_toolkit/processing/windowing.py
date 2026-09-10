@@ -33,7 +33,15 @@ class CSISample:
         from ..processing.amplitude import calculate_amplitudes
 
         seq = int(row.get('seq', 0))
-        timestamp = row.get('local_timestamp', '')
+        timestamp = str(row.get('local_timestamp', '')).strip()
+
+        # Backward compatibility for legacy datasets (e.g. csi-60k.csv) where
+        # local_timestamp holds the numeric device counter and sig_len holds the date string.
+        if (not timestamp or timestamp.isdigit()) and 'sig_len' in row:
+            sig_len_val = str(row.get('sig_len', '')).strip()
+            if '-' in sig_len_val and ':' in sig_len_val:
+                timestamp = sig_len_val
+
         mac = row.get('mac', '')
 
         # Extract label if in labeled mode

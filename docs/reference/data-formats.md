@@ -9,7 +9,7 @@ Complete specification of data formats used in CSI Toolkit.
 CSV file produced by the collection module.
 
 | Column | Type | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | type | string | Packet type (always "CSI_DATA") |
 | seq | int | Sequence number (incrementing) |
 | mac | string | MAC address of transmitter |
@@ -19,7 +19,8 @@ CSV file produced by the collection module.
 | fft_gain | int | FFT gain value |
 | agc_gain | int | Automatic Gain Control value |
 | channel | int | WiFi channel number |
-| local_timestamp | string | Local collection timestamp (YYYY-MM-DD HH:MM:SS.mmm) |
+| device_timestamp | int | ESP32 hardware device timestamp counter |
+| local_timestamp | string | Local host collection timestamp (YYYY-MM-DD HH:MM:SS.mmm) |
 | sig_len | int | Signal length |
 | rx_state | int | Receiver state |
 | len | int | Data length |
@@ -32,8 +33,8 @@ CSV file produced by the collection module.
 ### Example Row
 
 ```csv
-type,seq,mac,rssi,rate,noise_floor,fft_gain,agc_gain,channel,local_timestamp,sig_len,rx_state,len,first_word,data,amplitudes,label
-CSI_DATA,0,1a:00:00:00:00:00,-45,11,0,0,0,6,2025-01-13 14:30:22.123,128,0,384,0,"[[1,2],[3,4],...]","[45.2,46.1,...]",1
+type,seq,mac,rssi,rate,noise_floor,fft_gain,agc_gain,channel,device_timestamp,local_timestamp,sig_len,rx_state,len,first_word,data,amplitudes,label
+CSI_DATA,32633015,1a:00:00:00:00:00,-60,11,-93,12,53,11,2054426858,2025-11-13 17:39:42.845,128,0,384,0,"[0,0,0,0,0,0,0,0,15,46,...]","[0.0, 0.0, 48.38, ...]",0
 ```
 
 ### Notes
@@ -49,7 +50,7 @@ CSI_DATA,0,1a:00:00:00:00:00,-45,11,0,0,0,6,2025-01-13 14:30:22.123,128,0,384,0,
 CSV file produced by the processing module.
 
 | Column | Type | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | window_id | int | Window index (0-based) |
 | start_seq | int | Sequence number of first sample in window |
 | end_seq | int | Sequence number of last sample in window |
@@ -85,7 +86,7 @@ window_id,start_seq,end_seq,label,mean_amp,std_amp,max_amp,min_amp,mean_last3,st
 CSV file produced by inference module.
 
 | Column | Type | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | window_id | int | Window index |
 | start_seq | int | First sample sequence number |
 | end_seq | int | Last sample sequence number |
