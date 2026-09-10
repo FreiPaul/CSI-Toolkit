@@ -6,4 +6,10 @@
 data
 src/data
 models
+*.egg-info/
 *.egg-info
+build/
+dist/
+__pycache__/
+.pytest_cache/
+

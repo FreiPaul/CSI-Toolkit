@@ -49,13 +49,15 @@ ml = [
 csi-toolkit = "csi_toolkit.main:main"
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/csi-toolkit"
-"Bug Tracker" = "https://github.com/yourusername/csi-toolkit/issues"
-"Documentation" = "https://github.com/yourusername/csi-toolkit#readme"
+"Homepage" = "https://github.com/FreiPaul/CSI-Toolkit"
+"Bug Tracker" = "https://github.com/FreiPaul/CSI-Toolkit/issues"
+"Documentation" = "https://github.com/FreiPaul/CSI-Toolkit#readme"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["csi_toolkit", "csi_toolkit.core", "csi_toolkit.collection", "csi_toolkit.visualization", "csi_toolkit.visualization.plots", "csi_toolkit.processing", "csi_toolkit.io", "csi_toolkit.ml"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 csi_toolkit = ["py.typed"]
